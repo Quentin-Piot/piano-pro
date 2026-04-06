@@ -81,6 +81,10 @@ impl NoteLabels {
         self.pos = pos;
     }
 
+    pub fn set_notes(&mut self, notes: &NoteList) {
+        self.notes = notes.clone();
+    }
+
     #[profiling::function]
     pub fn update(
         &mut self,

@@ -174,6 +174,52 @@ impl PlayingScene {
         self.player.time_without_lead_in() + ctx.config.animation_offset()
     }
 
+    fn draw_countdown(&mut self, ctx: &Context) {
+        let time = self.player.time_without_lead_in();
+        if time >= 0.0 {
+            return;
+        }
+
+        let digit = (-time).ceil() as u32;
+        if digit > 3 {
+            return;
+        }
+
+        let text = digit.to_string();
+        let w = ctx.window_state.logical_size.width;
+        let h = ctx.window_state.logical_size.height;
+
+        let buffer = TextRenderer::gen_buffer_with_attr(
+            200.0,
+            &text,
+            cosmic_text::Attrs::new()
+                .family(cosmic_text::Family::SansSerif)
+                .color(cosmic_text::Color::rgb(26, 32, 44)),
+        );
+
+        let rect = neothesia_core::Rect::new((0.0, 0.0).into(), (w, h).into());
+        self.text_renderer.queue_buffer_centered(rect, buffer);
+    }
+
+    fn draw_pause_indicator(&mut self, ctx: &Context) {
+        if !self.player.is_paused() {
+            return;
+        }
+
+        let size = 36.0;
+        let padding = 16.0;
+        let x = ctx.window_state.logical_size.width - size - padding;
+        let y = padding;
+
+        self.text_renderer.queue_icon(
+            x,
+            y,
+            size,
+            crate::icons::pause_icon(),
+            cosmic_text::Color::rgb(26, 32, 44),
+        );
+    }
+
     #[profiling::function]
     fn resize(&mut self, ctx: &mut Context) {
         self.keyboard.resize(ctx);
@@ -232,6 +278,9 @@ impl Scene for PlayingScene {
             glow.prepare();
         }
 
+        self.draw_countdown(ctx);
+        self.draw_pause_indicator(ctx);
+
         #[cfg(debug_assertions)]
         self.text_renderer.queue_fps(
             ctx.fps_ticker.avg(),
@@ -276,9 +325,13 @@ impl Scene for PlayingScene {
         }
 
         if event.back_mouse_pressed() || event.key_released(Key::Named(NamedKey::Escape)) {
-            ctx.proxy
-                .send_event(NeothesiaEvent::MainMenu(Some(self.player.song().clone())))
-                .ok();
+            if self.top_bar.settings_active {
+                self.top_bar.settings_active = false;
+            } else {
+                ctx.proxy
+                    .send_event(NeothesiaEvent::MainMenu(Some(self.player.song().clone())))
+                    .ok();
+            }
         }
 
         if event.key_released(Key::Named(NamedKey::Space)) {
@@ -296,6 +349,14 @@ impl Scene for PlayingScene {
 
         if event.window_resized() || event.scale_factor_changed() {
             self.resize(ctx)
+        }
+
+        if let WindowEvent::MouseWheel { delta, .. } = event {
+            let dy = match delta {
+                winit::event::MouseScrollDelta::LineDelta(_, y) => y * 60.0,
+                winit::event::MouseScrollDelta::PixelDelta(pos) => pos.y as f32,
+            };
+            self.top_bar.tracks_scroll.update(dy);
         }
 
         super::handle_nuon_window_event(&mut self.nuon, event, ctx);

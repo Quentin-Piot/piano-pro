@@ -119,6 +119,17 @@ impl WaterfallRenderer {
         self.notes_pipeline.prepare(&self.device, &self.queue);
     }
 
+    pub fn set_notes(
+        &mut self,
+        tracks: &[MidiTrack],
+        hidden_tracks: &[usize],
+        config: &Config,
+        layout: piano_layout::KeyboardLayout,
+    ) {
+        self.notes = NoteList::new(tracks, hidden_tracks);
+        self.resize(config, layout);
+    }
+
     pub fn update(&mut self, time: f32) {
         self.notes_pipeline.update_time(&self.queue, time);
     }

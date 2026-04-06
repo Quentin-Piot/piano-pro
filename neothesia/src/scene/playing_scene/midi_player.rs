@@ -48,6 +48,10 @@ impl MidiPlayer {
         &self.song
     }
 
+    pub fn song_mut(&mut self) -> &mut Song {
+        &mut self.song
+    }
+
     /// When playing: returns midi events
     ///
     /// When paused: returns None
@@ -86,6 +90,12 @@ impl MidiPlayer {
     }
 
     fn clear(&mut self) {
+        self.output.stop_all();
+    }
+
+    /// Send note-off / all-notes-off to the output without affecting playback state.
+    /// Call this when a track is muted mid-playback so held notes don't stick.
+    pub fn stop_all_output(&mut self) {
         self.output.stop_all();
     }
 }

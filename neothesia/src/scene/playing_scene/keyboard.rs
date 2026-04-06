@@ -58,6 +58,10 @@ impl Keyboard {
         self.pressed_by_user_colors = colors;
     }
 
+    pub fn set_song_config(&mut self, config: crate::song::SongConfig) {
+        self.song_config = config;
+    }
+
     pub fn renderer(&self) -> &KeyboardRenderer {
         &self.renderer
     }
