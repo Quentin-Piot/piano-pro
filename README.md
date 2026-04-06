@@ -1,7 +1,5 @@
-![Neothesia Banner](https://github.com/user-attachments/assets/383438e5-80cd-49d2-af30-85afe5d79c6b)
-
-# Piano-Pro
-Piano-Pro is a professional piano learning and MIDI visualization tool, inspired by Guitar Pro but designed specifically for piano.
+# PianoPro
+PianoPro is a professional piano learning and MIDI visualization tool, inspired by Guitar Pro but designed specifically for piano.
 
 It allows you to load MIDI files and interact with them through a clear, structured, and practice-oriented interface.  
 The goal is to provide a more focused and less flashy experience, better suited for serious learning and analysis.
@@ -19,10 +17,10 @@ This project aims to bring a more structured and professional approach to piano 
 
 ## Screenshots
 
-![image](https://github.com/PolyMeilex/Neothesia/assets/20758186/65483bab-0b74-4fd4-90b1-fdd00508b676)
-
-|![settings](https://github.com/PolyMeilex/Neothesia/assets/20758186/e38642e2-6118-4931-9964-a1df27a36db9)|![track selection](https://github.com/PolyMeilex/Neothesia/assets/20758186/2309d970-0234-45ff-a9f4-105ff08514af)|
-|--|--|
+<p align="center">
+  <img src="./assets/screenshots/screenshot1.png" alt="PianoPro main menu" width="100%" />
+  <img src="./assets/screenshots/screenshot2.png" alt="PianoPro playback screen" width="100%" />
+</p>
 
 ## Credits
 

@@ -2,8 +2,8 @@
 Version=1.0
 Type=Application
 
-Name=Neothesia
-Comment=Midi visualizer
+Name=PianoPro
+Comment=Professional piano practice and MIDI visualizer
 Categories=Game;Music;
 Icon=com.github.polymeilex.neothesia
 

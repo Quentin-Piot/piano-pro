@@ -23,10 +23,10 @@
   <url type="homepage">https://polymeilex.github.io/Neothesia</url>
   <url type="bugtracker">https://github.com/PolyMeilex/Neothesia/issues</url>
 
-  <name>Neothesia</name>
-  <summary>GPU accelerated midi visualizer</summary>
+  <name>PianoPro</name>
+  <summary>Professional piano practice and MIDI visualizer</summary>
   <description>
-    <p>Neothesia is a simple software that helps you to learn how to play on the piano.</p>
+    <p>PianoPro is a professional piano learning tool with synchronized MIDI visualization.</p>
     <p>For more info visit https://github.com/PolyMeilex/Neothesia</p>
   </description>
 

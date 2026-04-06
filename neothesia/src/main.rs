@@ -192,7 +192,7 @@ impl Neothesia {
                 .gpu
                 .encoder
                 .begin_render_pass(&wgpu::RenderPassDescriptor {
-                    label: Some("Main Neothesia Pass"),
+                    label: Some("Main PianoPro Pass"),
                     color_attachments: &[Some(wgpu::RenderPassColorAttachment {
                         view,
                         resolve_target: None,
@@ -232,17 +232,18 @@ impl ApplicationHandler<NeothesiaEvent> for NeothesiaBootstrap {
             return;
         }
 
+        #[allow(unused_mut)]
         let mut attributes = winit::window::Window::default_attributes()
             .with_inner_size(winit::dpi::LogicalSize {
                 width: 1080.0,
                 height: 720.0,
             })
-            .with_title("Neothesia")
+            .with_title("PianoPro")
             .with_min_inner_size(winit::dpi::LogicalSize {
                 width: 670.0,
                 height: 620.0,
             })
-            .with_theme(Some(winit::window::Theme::Dark));
+            .with_theme(Some(winit::window::Theme::Light));
 
         #[cfg(all(unix, not(target_os = "macos")))]
         {
