@@ -11,9 +11,9 @@ use super::UiState;
 
 fn button() -> nuon::Button {
     nuon::button()
-        .color([74, 68, 88])
-        .preseed_color([74, 68, 88])
-        .hover_color([87, 81, 101])
+        .color(nuon::theme::SURFACE_ELEVATED)
+        .preseed_color(nuon::theme::SURFACE_PRESSED)
+        .hover_color(nuon::theme::SURFACE_HOVER)
         .border_radius([5.0; 4])
 }
 

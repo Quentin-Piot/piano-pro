@@ -1,6 +1,6 @@
 use std::hash::Hash;
 
-use crate::{self as nuon, Id, TextJustify, Ui};
+use crate::{self as nuon, Id, TextJustify, Ui, theme};
 
 pub struct SettingsSection {
     label: String,
@@ -31,7 +31,7 @@ impl SettingsSection {
             nuon::quad()
                 .width(self.width)
                 .height(1.0)
-                .color([0; 3])
+                .color(theme::DIVIDER)
                 .build(ui);
             nuon::translate().y(1.0).add_to_current(ui);
         };
@@ -141,7 +141,7 @@ impl<'a> SettingsRow<'a> {
                 nuon::label()
                     .y(y + gap + title_h)
                     .text(self.subtitle)
-                    .color([1.0, 1.0, 1.0, 0.5])
+                    .color(theme::TEXT_MUTED)
                     .text_justify(nuon::TextJustify::Left)
                     .font_size(subtitle_h)
                     .size(row_inner_w, subtitle_h)
@@ -209,9 +209,9 @@ impl<'a> SettingsRowSpin<'a> {
     ) -> SettingsRowSpinResult {
         fn button() -> nuon::Button {
             nuon::button()
-                .color([74, 68, 88])
-                .preseed_color([74, 68, 88])
-                .hover_color([87, 81, 101])
+                .color(theme::SURFACE_ELEVATED)
+                .preseed_color(theme::SURFACE_PRESSED)
+                .hover_color(theme::SURFACE_HOVER)
                 .border_radius([16.0; 4])
         }
 
@@ -335,19 +335,19 @@ impl<'a> SettingsRowToggler<'a> {
                 if nuon::button()
                     .border_radius([8.0; 4])
                     .color(if self.value {
-                        [160, 81, 255]
+                        theme::PRIMARY
                     } else {
-                        [74, 68, 88]
+                        theme::SURFACE_ELEVATED
                     })
                     .hover_color(if self.value {
-                        [170, 91, 255]
+                        theme::PRIMARY_HOVER
                     } else {
-                        [87, 81, 101]
+                        theme::SURFACE_HOVER
                     })
                     .preseed_color(if self.value {
-                        [140, 70, 240]
+                        theme::PRIMARY_PRESSED
                     } else {
-                        [97, 91, 111]
+                        theme::SURFACE_PRESSED
                     })
                     .x(row_w - w)
                     .y(nuon::center_y(row_h, h))

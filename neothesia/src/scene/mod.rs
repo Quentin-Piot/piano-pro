@@ -203,6 +203,7 @@ impl NuonRenderer {
         });
     }
 
+    #[allow(dead_code)]
     pub fn add_image(&mut self, image: Image) -> ImageIdentifier {
         let ident = image.identifier();
         self.image_map.insert(ident, image);
@@ -245,8 +246,13 @@ fn render_nuon(ui: &mut nuon::Ui, nuon_renderer: &mut NuonRenderer, ctx: &mut Co
             .to_physical::<u32>(ctx.window_state.scale_factor);
         let size = LogicalSize::new(scissor_rect.width(), scissor_rect.height())
             .to_physical::<u32>(ctx.window_state.scale_factor);
-        let scissor_rect =
-            neothesia_core::Rect::new((pos.x, pos.y).into(), (size.width, size.height).into());
+        let max_w = ctx.window_state.physical_size.width;
+        let max_h = ctx.window_state.physical_size.height;
+        let x = pos.x.min(max_w);
+        let y = pos.y.min(max_h);
+        let w = size.width.min(max_w.saturating_sub(x));
+        let h = size.height.min(max_h.saturating_sub(y));
+        let scissor_rect = neothesia_core::Rect::new((x, y).into(), (w, h).into());
 
         out.quad_renderer.set_scissor_rect(scissor_rect);
         out.text_renderer.set_scissor_rect(scissor_rect);

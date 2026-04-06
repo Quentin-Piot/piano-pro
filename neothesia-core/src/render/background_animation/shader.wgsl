@@ -35,10 +35,10 @@ fn rot_z(angle: f32) -> mat2x2<f32> {
 fn note_render(uv: vec2<f32>, pos: f32, color: vec3<f32>) -> vec3<f32> {
     let mod_x: f32 = uv.x % (0.1 * 2.5 * 2.0);
 
-    var col: vec3<f32> = vec3<f32>(0.35, 0.08, 0.85);
+    var col: vec3<f32> = vec3<f32>(0.78, 0.85, 0.94);
 
     if pos == 0.5 {
-        col = vec3<f32>(0.16, 0.02, 0.44);
+        col = vec3<f32>(0.67, 0.77, 0.90);
     }
 
     if uv.y > 0.0 && uv.y < 0.5 {
@@ -54,7 +54,7 @@ const live_time: f32 = 2.6;
 @fragment
 fn fs_main(in: VertexOutput) -> @location(0) vec4<f32> {
     var uv: vec2<f32> = in.uv_position;
-    var color: vec3<f32> = vec3<f32>(0.01);
+    var color: vec3<f32> = vec3<f32>(0.95);
 
     let d = 0.0;
 
@@ -100,5 +100,5 @@ fn fs_main(in: VertexOutput) -> @location(0) vec4<f32> {
     }
 
 
-    return vec4<f32>(color / 2.5, 0.5);
+    return vec4<f32>(color, 0.92);
 }

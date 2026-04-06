@@ -161,7 +161,7 @@ pub struct AppearanceConfigV1 {
     #[serde(default = "default_color_schema")]
     pub color_schema: Vec<ColorSchemaV1>,
 
-    #[serde(default)]
+    #[serde(default = "default_background_color")]
     pub background_color: (u8, u8, u8),
 
     #[serde(default = "default_vertical_guidelines")]
@@ -183,7 +183,7 @@ impl Default for AppearanceConfig {
     fn default() -> Self {
         Self::V1(AppearanceConfigV1 {
             color_schema: default_color_schema(),
-            background_color: Default::default(),
+            background_color: default_background_color(),
             vertical_guidelines: default_vertical_guidelines(),
             horizontal_guidelines: default_horizontal_guidelines(),
             glow: default_glow(),
@@ -258,6 +258,10 @@ fn default_color_schema() -> Vec<ColorSchemaV1> {
             dark: (125, 69, 134),
         },
     ]
+}
+
+fn default_background_color() -> (u8, u8, u8) {
+    (244, 247, 251)
 }
 
 fn default_output() -> Option<String> {

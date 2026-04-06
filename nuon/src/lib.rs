@@ -4,6 +4,7 @@ use std::{
 };
 
 pub use euclid;
+pub mod theme;
 
 pub type Point = euclid::default::Point2D<f32>;
 pub type Size = euclid::default::Size2D<f32>;
@@ -56,11 +57,11 @@ impl Color {
         a: 1.0,
     };
 
-    pub fn new(r: f32, g: f32, b: f32, a: f32) -> Self {
+    pub const fn new(r: f32, g: f32, b: f32, a: f32) -> Self {
         Self { r, g, b, a }
     }
 
-    pub fn new_u8(r: u8, g: u8, b: u8, a: f32) -> Self {
+    pub const fn new_u8(r: u8, g: u8, b: u8, a: f32) -> Self {
         Self {
             r: r as f32 / 255.0,
             g: g as f32 / 255.0,
@@ -575,7 +576,7 @@ impl Scroll {
                 .y(0.0)
                 .x(self.rect.size.width - w)
                 .size(w, self.rect.height())
-                .color([37, 35, 42])
+                .color(theme::SURFACE_ELEVATED)
                 .border_radius([5.0; 4])
                 .build(ui);
 
@@ -586,9 +587,9 @@ impl Scroll {
             let res = self::click_area("scroll").size(w, h).pos(x, y).build(ui);
 
             let color = if res.is_hovered() || res.is_pressed() {
-                [87, 81, 101]
+                theme::PRIMARY
             } else {
-                [74, 68, 88]
+                theme::SURFACE_HOVER
             };
 
             if res.is_press_start() {
@@ -634,7 +635,7 @@ impl Card {
 
         self::quad()
             .size(last.x, last.y)
-            .color([37, 35, 42])
+            .color(theme::SURFACE)
             .border_radius([5.0; 4])
             .build(ui);
 
@@ -666,7 +667,7 @@ impl RowGroup {
 
         self::quad()
             .size(last.x, last.y)
-            .color([37, 35, 42])
+            .color(theme::SURFACE)
             .border_radius([10.0; 4])
             .build(ui);
 
@@ -984,8 +985,8 @@ impl Button {
             pos: Point::zero(),
             size: Size::new(50.0, 50.0),
             color: Color::new_u8(0, 0, 0, 0.0),
-            hover_color: Color::new_u8(57, 55, 62, 1.0),
-            preseed_color: Color::new_u8(67, 65, 72, 1.0),
+            hover_color: theme::SURFACE_HOVER,
+            preseed_color: theme::SURFACE_PRESSED,
             border_radius: [0.0; 4],
             icon: "X",
             label: Cow::Borrowed(""),
@@ -1122,7 +1123,7 @@ impl Button {
                 origin: Point::new(x, y),
                 size: icon_size,
                 icon: self.icon.to_string(),
-                color: Color::WHITE,
+                color: theme::TEXT,
             });
         } else {
             let pad_x = pad_x * 10.0;
@@ -1136,7 +1137,7 @@ impl Button {
                 size: 16.0,
                 bold: false,
                 text: self.label.to_string(),
-                color: Color::new_u8(255, 255, 255, 1.0),
+                color: theme::TEXT,
                 font_family: Cow::Borrowed("Roboto"),
             });
         }
@@ -1175,7 +1176,7 @@ impl Label {
             size: Size::new(50.0, 50.0),
             font_size: 13.0,
             text_justify: TextJustify::Center,
-            color: Color::new(1.0, 1.0, 1.0, 1.0),
+            color: theme::TEXT,
             text: String::new(),
             icon: String::new(),
             bold: false,
@@ -1301,7 +1302,7 @@ pub fn combo_list<'a, ITEM: ToString>(
     self::quad()
         .width(item_w)
         .height(item_h * list.len() as f32)
-        .color([27, 25, 32])
+        .color(theme::SURFACE_ELEVATED)
         .build(ui);
 
     let id = id.into();
@@ -1320,8 +1321,8 @@ pub fn combo_list<'a, ITEM: ToString>(
             .label(item.to_string())
             .text_justify(TextJustify::Left)
             .border_radius([5.0; 4])
-            .hover_color([160, 81, 255])
-            .preseed_color([180, 90, 255])
+            .hover_color(theme::PRIMARY_HOVER)
+            .preseed_color(theme::PRIMARY)
             .build(ui)
         {
             res = Some(item);

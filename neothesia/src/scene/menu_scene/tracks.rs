@@ -192,7 +192,7 @@ fn track_card(
 
     nuon::quad()
         .size(card_w, card_h)
-        .color([37, 35, 42])
+        .color(nuon::theme::SURFACE)
         .border_radius([12.0; 4])
         .build(ui);
 
@@ -212,8 +212,8 @@ fn track_card(
             1.0,
         );
 
-        let regular = nuon::Color::from([74, 68, 88]);
-        let regular_hover = nuon::Color::from([87, 81, 101]);
+        let regular = nuon::theme::SURFACE_ELEVATED;
+        let regular_hover = nuon::theme::SURFACE_HOVER;
 
         if nuon::button()
             .id(nuon::Id::hash_with(|h| {

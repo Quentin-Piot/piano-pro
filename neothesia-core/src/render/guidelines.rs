@@ -63,9 +63,9 @@ impl GuidelineRenderer {
             let h = size.height;
 
             let color = if key.note_id() == 0 {
-                [0.2, 0.2, 0.2, 1.0]
+                [0.68, 0.72, 0.80, 1.0]
             } else {
-                [0.05, 0.05, 0.05, 1.0]
+                [0.84, 0.87, 0.92, 1.0]
             };
 
             self.cache.push(QuadInstance {
@@ -103,7 +103,7 @@ impl GuidelineRenderer {
             quads.layer().push(QuadInstance {
                 position: [x, y],
                 size: [w, h],
-                color: [0.05, 0.05, 0.05, 1.0],
+                color: [0.82, 0.86, 0.91, 1.0],
                 border_radius: [0.0, 0.0, 0.0, 0.0],
             });
         }
