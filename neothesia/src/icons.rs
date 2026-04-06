@@ -28,6 +28,10 @@ pub fn left_arrow_icon() -> &'static str {
     "\u{f12f}"
 }
 
+pub fn exit_icon() -> &'static str {
+    "\u{f1c3}"
+}
+
 pub fn minus_icon() -> &'static str {
     "\u{F2EA}"
 }

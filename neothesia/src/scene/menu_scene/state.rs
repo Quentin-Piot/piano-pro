@@ -105,6 +105,7 @@ pub enum Page {
     Main,
     Settings,
     TrackSelection,
+    PlayConfirm,
 }
 
 fn connect_io(data: &UiState, ctx: &mut Context) {

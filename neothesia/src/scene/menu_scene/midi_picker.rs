@@ -14,6 +14,7 @@ pub fn open_midi_file_picker(data: &mut UiState) -> BoxFuture<MsgFn> {
         if let Some((midi, path)) = res {
             ctx.config.set_last_opened_song(Some(path));
             data.song = Some(Song::new(midi));
+            data.go_to(super::state::Page::PlayConfirm);
         }
         data.is_loading = false;
     })
