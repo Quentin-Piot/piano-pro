@@ -1,17 +1,51 @@
-use std::{env, path::PathBuf};
+use std::{
+    env,
+    path::{Path, PathBuf},
+};
 
+#[cfg(all(target_family = "unix", not(target_os = "macos")))]
 fn home() -> Option<PathBuf> {
     env::var_os("HOME")
         .and_then(|h| if h.is_empty() { None } else { Some(h) })
         .map(PathBuf::from)
 }
 
+#[cfg(all(target_family = "unix", not(target_os = "macos")))]
 fn xdg_config() -> Option<PathBuf> {
     env::var_os("XDG_CONFIG_HOME")
         .and_then(|h| if h.is_empty() { None } else { Some(h) })
         .map(PathBuf::from)
         .map(|p| p.join("neothesia"))
         .or_else(|| home().map(|h| h.join(".config").join("neothesia")))
+}
+
+fn file_name(name: &str, extension: &str) -> String {
+    format!("{name}.{extension}")
+}
+
+fn existing_resource_path(base: &Path, file_name: &str) -> Option<PathBuf> {
+    let path = base.join(file_name);
+    path.exists().then_some(path)
+}
+
+fn dev_resource_path(name: &str, extension: &str) -> Option<PathBuf> {
+    let file_name = file_name(name, extension);
+
+    if let Some(path) = env::current_dir()
+        .ok()
+        .and_then(|dir| existing_resource_path(&dir, &file_name))
+    {
+        return Some(path);
+    }
+
+    env::current_exe()
+        .ok()
+        .and_then(|exe| exe.parent().map(Path::to_path_buf))
+        .and_then(|dir| {
+            dir.ancestors()
+                .take(4)
+                .find_map(|ancestor| existing_resource_path(ancestor, &file_name))
+        })
 }
 
 pub fn default_sf2() -> Option<PathBuf> {
@@ -36,17 +70,25 @@ pub fn default_sf2() -> Option<PathBuf> {
 
         let flatpak = PathBuf::from("/app/share/neothesia/default.sf2");
         if flatpak.exists() {
-            Some(flatpak)
-        } else {
-            None
+            return Some(flatpak);
         }
+
+        return dev_resource_path("default", "sf2");
     }
 
     #[cfg(target_os = "windows")]
-    return Some(PathBuf::from("./default.sf2"));
+    return dev_resource_path("default", "sf2");
 
     #[cfg(target_os = "macos")]
-    return bundled_resource_path("default", "sf2").map(PathBuf::from);
+    {
+        if let Some(path) = bundled_resource_path("default", "sf2").map(PathBuf::from)
+            && path.exists()
+        {
+            return Some(path);
+        }
+
+        return dev_resource_path("default", "sf2");
+    }
 }
 
 pub fn settings_ron() -> Option<PathBuf> {

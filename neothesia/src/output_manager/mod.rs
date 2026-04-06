@@ -149,17 +149,28 @@ impl OutputManager {
                 #[cfg(feature = "synth")]
                 OutputDescriptor::Synth(ref font) => {
                     if let Some(ref mut synth) = self.synth_backend {
-                        if let Some(font) = font.clone() {
-                            self.output_connection = (
-                                desc,
-                                OutputConnection::Synth(synth.new_output_connection(&font)),
-                            );
-                        } else if let Some(path) = crate::utils::resources::default_sf2()
-                            && path.exists()
-                        {
+                        let resolved = if let Some(font) = font.clone() {
+                            if font.exists() {
+                                Some(font)
+                            } else {
+                                log::warn!(
+                                    "Configured soundfont not found ({}), falling back to default",
+                                    font.display()
+                                );
+                                crate::utils::resources::default_sf2()
+                            }
+                        } else {
+                            crate::utils::resources::default_sf2()
+                        };
+
+                        if let Some(path) = resolved {
                             self.output_connection = (
                                 desc,
                                 OutputConnection::Synth(synth.new_output_connection(&path)),
+                            );
+                        } else {
+                            log::warn!(
+                                "No soundfont could be resolved. Expected a bundled resource or a local default.sf2 file."
                             );
                         }
                     }

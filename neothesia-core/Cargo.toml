@@ -3,6 +3,11 @@ name = "neothesia-core"
 version = "0.1.0"
 edition.workspace = true
 
+[lints.rust]
+# Suppress the warning triggered by `#[cfg(feature = "cargo-clippy")]` that some
+# transitive dependencies emit. Remove once those crates are updated upstream.
+unexpected_cfgs = { level = "warn", check-cfg = ['cfg(feature, values("cargo-clippy"))'] }
+
 [dependencies]
 serde = { workspace = true, features = ["serde_derive"] }
 neothesia-image.workspace = true
