@@ -516,6 +516,89 @@ impl ScrollState {
 }
 
 #[derive(Debug, Clone, Default)]
+pub struct TextInputState {
+    pub value: String,
+    pub cursor: usize,
+    pub focused: bool,
+}
+
+impl TextInputState {
+    pub fn new() -> Self {
+        Self::default()
+    }
+
+    pub fn insert_char(&mut self, c: char) {
+        self.value.insert(self.cursor, c);
+        self.cursor = (self.cursor + c.len_utf8()).min(self.value.len());
+    }
+
+    pub fn backspace(&mut self) {
+        if self.cursor > 0 {
+            let char_start = self
+                .value
+                .char_indices()
+                .rev()
+                .find(|(i, _)| *i < self.cursor)
+                .map(|(i, _)| i)
+                .unwrap_or(0);
+            self.value.remove(char_start);
+            self.cursor = char_start;
+        }
+    }
+
+    pub fn delete(&mut self) {
+        if self.cursor < self.value.len() {
+            let char_end = self.value[self.cursor..]
+                .chars()
+                .next()
+                .map(|c| self.cursor + c.len_utf8())
+                .unwrap_or(self.value.len());
+            self.value.drain(self.cursor..char_end);
+        }
+    }
+
+    pub fn move_cursor_left(&mut self) {
+        if self.cursor > 0 {
+            self.cursor = self
+                .value
+                .char_indices()
+                .rev()
+                .find(|(i, _)| *i < self.cursor)
+                .map(|(i, _)| i)
+                .unwrap_or(0);
+        }
+    }
+
+    pub fn move_cursor_right(&mut self) {
+        if self.cursor < self.value.len() {
+            self.cursor = self.value[self.cursor..]
+                .chars()
+                .next()
+                .map(|c| self.cursor + c.len_utf8())
+                .unwrap_or(self.value.len());
+        }
+    }
+
+    pub fn move_cursor_home(&mut self) {
+        self.cursor = 0;
+    }
+
+    pub fn move_cursor_end(&mut self) {
+        self.cursor = self.value.len();
+    }
+
+    pub fn clear(&mut self) {
+        self.value.clear();
+        self.cursor = 0;
+    }
+
+    pub fn set_value(&mut self, value: String) {
+        self.cursor = value.len();
+        self.value = value;
+    }
+}
+
+#[derive(Debug, Clone, Default)]
 pub struct Scroll {
     rect: Rect,
     scroll: ScrollState,
@@ -1290,6 +1373,107 @@ impl Label {
                 color: self.color,
             });
         }
+    }
+}
+
+#[derive(Debug, Clone)]
+pub struct TextInput {
+    pos: Point,
+    size: Size,
+    font_size: f32,
+    text_color: Color,
+    bg_color: Color,
+    border_color: Color,
+}
+
+pub fn text_input() -> TextInput {
+    TextInput::new()
+}
+
+impl Default for TextInput {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
+impl TextInput {
+    pub fn new() -> Self {
+        Self {
+            pos: Point::zero(),
+            size: Size::new(200.0, 40.0),
+            font_size: 13.0,
+            text_color: theme::TEXT,
+            bg_color: theme::SURFACE,
+            border_color: theme::DIVIDER,
+        }
+    }
+
+    pub fn pos(self, x: f32, y: f32) -> Self {
+        self.x(x).y(y)
+    }
+
+    pub fn x(mut self, x: f32) -> Self {
+        self.pos.x = x;
+        self
+    }
+
+    pub fn y(mut self, y: f32) -> Self {
+        self.pos.y = y;
+        self
+    }
+
+    pub fn size(self, width: f32, height: f32) -> Self {
+        self.width(width).height(height)
+    }
+
+    pub fn width(mut self, width: f32) -> Self {
+        self.size.width = width;
+        self
+    }
+
+    pub fn height(mut self, height: f32) -> Self {
+        self.size.height = height;
+        self
+    }
+
+    pub fn font_size(mut self, font_size: f32) -> Self {
+        self.font_size = font_size;
+        self
+    }
+
+    pub fn text_color(mut self, color: impl Into<Color>) -> Self {
+        self.text_color = color.into();
+        self
+    }
+
+    pub fn bg_color(mut self, color: impl Into<Color>) -> Self {
+        self.bg_color = color.into();
+        self
+    }
+
+    pub fn border_color(mut self, color: impl Into<Color>) -> Self {
+        self.border_color = color.into();
+        self
+    }
+
+    pub fn build(&self, ui: &mut Ui) -> bool {
+        // Draw background
+        quad()
+            .pos(self.pos.x, self.pos.y)
+            .size(self.size.width, self.size.height)
+            .color(self.bg_color)
+            .border_radius([4.0; 4])
+            .build(ui);
+
+        // Draw border
+        quad()
+            .pos(self.pos.x, self.pos.y)
+            .size(self.size.width, self.size.height)
+            .color(self.border_color)
+            .border_radius([4.0; 4])
+            .build(ui);
+
+        false // For now, just render. Interaction will be handled via TextInputState
     }
 }
 

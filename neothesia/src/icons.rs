@@ -51,3 +51,11 @@ pub fn note_list_icon() -> &'static str {
 pub fn caret_down() -> &'static str {
     "\u{f229}"
 }
+
+pub fn pencil_icon() -> &'static str {
+    "\u{F4CB}"
+}
+
+pub fn play_circle_icon() -> &'static str {
+    "\u{F4F7}"
+}

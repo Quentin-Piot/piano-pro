@@ -1,5 +1,5 @@
 use crate::{MidiTrack, program_track::ProgramTrack, tempo_track::TempoTrack};
-use midly::{Format, Smf, Timing};
+use midly::{Format, MetaMessage, Smf, Timing};
 use std::{fs, path::Path, sync::Arc};
 
 #[derive(Debug, Clone)]
@@ -94,4 +94,50 @@ impl MidiFile {
             measures: measures.into(),
         })
     }
+}
+
+pub fn extract_midi_metadata(path: &Path) -> Option<String> {
+    let data = fs::read(path).ok()?;
+    let smf = Smf::parse(&data).ok()?;
+
+    let mut track_name: Option<String> = None;
+    let mut text: Option<String> = None;
+    let mut instrument_name: Option<String> = None;
+
+    for track in &smf.tracks {
+        for event in track.iter() {
+            if let midly::TrackEventKind::Meta(msg) = &event.kind {
+                match msg {
+                    MetaMessage::TrackName(data) => {
+                        let s = String::from_utf8_lossy(data).trim().to_string();
+                        if !s.is_empty() && track_name.is_none() {
+                            track_name = Some(s);
+                        }
+                    }
+                    MetaMessage::Text(data) => {
+                        let s = String::from_utf8_lossy(data).trim().to_string();
+                        if !s.is_empty() && text.is_none() {
+                            text = Some(s);
+                        }
+                    }
+                    MetaMessage::InstrumentName(data) => {
+                        let s = String::from_utf8_lossy(data).trim().to_string();
+                        if !s.is_empty() && instrument_name.is_none() {
+                            instrument_name = Some(s);
+                        }
+                    }
+                    _ => {}
+                }
+            }
+        }
+
+        if track_name.is_some() {
+            break;
+        }
+    }
+
+    track_name
+        .or(text)
+        .or(instrument_name)
+        .or_else(|| path.file_stem().and_then(|s| s.to_str()).map(String::from))
 }

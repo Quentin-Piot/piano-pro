@@ -2,12 +2,12 @@ use std::path::PathBuf;
 
 mod model;
 
-pub use model::ColorSchemaV1;
 use model::{
     AppearanceConfig, AppearanceConfigV1, DevicesConfig, DevicesConfigV1, History, HistoryV1,
-    LayoutConfig, LayoutConfigV1, Model, PlaybackConfig, PlaybackConfigV1, SynthConfig,
-    SynthConfigV1, WaterfallConfig, WaterfallConfigV1,
+    LayoutConfig, LayoutConfigV1, Library, LibraryV1, Model, PlaybackConfig, PlaybackConfigV1,
+    SynthConfig, SynthConfigV1, WaterfallConfig, WaterfallConfigV1,
 };
+pub use model::{ColorSchemaV1, MidiEntryV1};
 
 fn ron_options() -> ron::Options {
     ron::Options::default()
@@ -44,6 +44,7 @@ impl Model {
             synth,
             keyboard_layout,
             appearance,
+            library,
         } = config;
 
         Self {
@@ -54,6 +55,7 @@ impl Model {
             keyboard_layout: LayoutConfig::V1(keyboard_layout),
             devices: DevicesConfig::V1(devices),
             appearance: AppearanceConfig::V1(appearance),
+            library: Library::V1(library),
         }
     }
 
@@ -80,6 +82,9 @@ impl Model {
             keyboard_layout: match self.keyboard_layout {
                 LayoutConfig::V1(v) => v,
             },
+            library: match self.library {
+                Library::V1(v) => v,
+            },
         }
     }
 }
@@ -93,6 +98,7 @@ pub struct Config {
     synth: SynthConfigV1,
     history: HistoryV1,
     keyboard_layout: LayoutConfigV1,
+    library: LibraryV1,
 }
 
 impl Default for Config {
@@ -241,6 +247,44 @@ impl Config {
 
     pub fn set_speed_multiplier(&mut self, speed_multiplier: f32) {
         self.playback.speed_multiplier = speed_multiplier.max(0.0);
+    }
+
+    pub fn library_entries(&self) -> &[MidiEntryV1] {
+        &self.library.entries
+    }
+
+    pub fn add_midi_to_library(&mut self, entry: MidiEntryV1) {
+        self.library.entries.push(entry);
+    }
+
+    pub fn remove_midi_from_library(&mut self, stored_name: &str) -> bool {
+        let before_len = self.library.entries.len();
+        self.library
+            .entries
+            .retain(|e| e.stored_name != stored_name);
+        self.library.entries.len() < before_len
+    }
+
+    pub fn lookup_display_name(&self, stored_name: &str) -> Option<String> {
+        self.library
+            .entries
+            .iter()
+            .find(|e| e.stored_name == stored_name)
+            .map(|e| e.display_name.clone())
+    }
+
+    pub fn update_midi_entry_name(&mut self, stored_name: &str, new_display_name: String) -> bool {
+        if let Some(entry) = self
+            .library
+            .entries
+            .iter_mut()
+            .find(|e| e.stored_name == stored_name)
+        {
+            entry.display_name = new_display_name;
+            true
+        } else {
+            false
+        }
     }
 
     pub fn save(&self) {

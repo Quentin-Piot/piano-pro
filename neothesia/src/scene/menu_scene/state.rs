@@ -1,5 +1,6 @@
 use std::collections::VecDeque;
 
+use super::midi_picker::PendingImport;
 use crate::{NeothesiaEvent, context::Context, output_manager::OutputDescriptor, song::Song};
 
 type InputDescriptor = midi_io::MidiInputPort;
@@ -16,6 +17,8 @@ pub struct UiState {
     pub song: Option<Song>,
 
     page_stack: VecDeque<Page>,
+
+    pub pending_import: Option<PendingImport>,
 }
 
 impl UiState {
@@ -30,8 +33,8 @@ impl UiState {
             selected_input: None,
             is_loading: false,
             song,
-
             page_stack,
+            pending_import: None,
         }
     }
 
@@ -52,14 +55,8 @@ impl UiState {
     }
 
     pub fn go_back(&mut self) {
-        match self.page_stack.len() {
-            1 => {
-                // Last page in the stack, let's go to exit page
-                self.page_stack.push_front(Page::Exit);
-            }
-            _ => {
-                self.page_stack.pop_front();
-            }
+        if self.page_stack.len() > 1 {
+            self.page_stack.pop_front();
         }
     }
 }
@@ -101,9 +98,10 @@ impl UiState {
 
 #[derive(Debug, Clone, Copy, Eq, PartialEq)]
 pub enum Page {
-    Exit,
     Main,
     Settings,
+    Library,
+    NameEntry,
     TrackSelection,
     PlayConfirm,
 }

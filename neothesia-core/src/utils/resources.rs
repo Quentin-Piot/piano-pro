@@ -102,6 +102,17 @@ pub fn settings_ron() -> Option<PathBuf> {
     return bundled_resource_path("settings", "ron").map(PathBuf::from);
 }
 
+pub fn midi_library_dir() -> Option<PathBuf> {
+    #[cfg(all(target_family = "unix", not(target_os = "macos")))]
+    return xdg_config().map(|p| p.join("midi"));
+
+    #[cfg(target_os = "windows")]
+    return Some(PathBuf::from("./midi"));
+
+    #[cfg(target_os = "macos")]
+    return bundled_resource_path("midi", "").map(PathBuf::from);
+}
+
 #[cfg(target_os = "macos")]
 fn bundled_resource_path(name: &str, extension: &str) -> Option<String> {
     use objc::{

@@ -44,24 +44,50 @@ impl SongConfig {
 pub struct Song {
     pub file: midi_file::MidiFile,
     pub config: SongConfig,
+    pub display_name: Option<String>,
 }
 
 impl Song {
     pub fn new(file: midi_file::MidiFile) -> Self {
         let config = SongConfig::new(&file.tracks);
-        Self { file, config }
+        Self {
+            file,
+            config,
+            display_name: None,
+        }
+    }
+
+    pub fn with_display_name(file: midi_file::MidiFile, display_name: String) -> Self {
+        let config = SongConfig::new(&file.tracks);
+        Self {
+            file,
+            config,
+            display_name: Some(display_name),
+        }
     }
 
     pub fn from_env(ctx: &Context) -> Option<Self> {
         let args: Vec<String> = std::env::args().collect();
-        let midi_file = if args.len() > 1 {
-            midi_file::MidiFile::new(&args[1]).ok()
-        } else if let Some(last) = ctx.config.last_opened_song() {
-            midi_file::MidiFile::new(last).ok()
+
+        let (midi_file, display_name) = if args.len() > 1 {
+            (midi_file::MidiFile::new(&args[1]).ok(), None)
+        } else if let Some(last_path) = ctx.config.last_opened_song() {
+            let midi = midi_file::MidiFile::new(&last_path).ok();
+            let display = last_path
+                .file_name()
+                .and_then(|n| n.to_str())
+                .and_then(|stored_name| ctx.config.lookup_display_name(stored_name));
+            (midi, display)
         } else {
-            None
+            (None, None)
         };
 
-        Some(Self::new(midi_file?))
+        let midi = midi_file?;
+
+        Some(if let Some(name) = display_name {
+            Self::with_display_name(midi, name)
+        } else {
+            Self::new(midi)
+        })
     }
 }

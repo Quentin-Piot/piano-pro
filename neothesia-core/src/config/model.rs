@@ -1,6 +1,33 @@
 use std::path::PathBuf;
+use std::time::{SystemTime, UNIX_EPOCH};
 
 use serde::{Deserialize, Serialize};
+
+#[derive(Serialize, Deserialize, Clone, Debug)]
+pub struct MidiEntryV1 {
+    pub stored_name: String,
+    pub display_name: String,
+    pub added_at: u64,
+}
+
+#[derive(Serialize, Deserialize, Clone)]
+pub struct LibraryV1 {
+    #[serde(default)]
+    pub entries: Vec<MidiEntryV1>,
+}
+
+#[derive(Serialize, Deserialize)]
+pub enum Library {
+    V1(LibraryV1),
+}
+
+impl Default for Library {
+    fn default() -> Self {
+        Self::V1(LibraryV1 {
+            entries: Vec::new(),
+        })
+    }
+}
 
 #[derive(Serialize, Deserialize, Default)]
 #[serde(deny_unknown_fields)]
@@ -19,6 +46,8 @@ pub struct Model {
     pub devices: DevicesConfig,
     #[serde(default)]
     pub appearance: AppearanceConfig,
+    #[serde(default)]
+    pub library: Library,
 }
 
 #[derive(Serialize, Deserialize, Clone)]
@@ -266,4 +295,34 @@ fn default_background_color() -> (u8, u8, u8) {
 
 fn default_output() -> Option<String> {
     Some("Buildin Synth".into())
+}
+
+impl MidiEntryV1 {
+    pub fn new(display_name: String, stem: String) -> Self {
+        let timestamp = SystemTime::now()
+            .duration_since(UNIX_EPOCH)
+            .map(|d| d.as_secs())
+            .unwrap_or(0);
+
+        let stored_name = format!("{}_{}.mid", timestamp, stem);
+
+        Self {
+            stored_name,
+            display_name,
+            added_at: timestamp,
+        }
+    }
+
+    pub fn with_stored_name(display_name: String, stored_name: String) -> Self {
+        let timestamp = SystemTime::now()
+            .duration_since(UNIX_EPOCH)
+            .map(|d| d.as_secs())
+            .unwrap_or(0);
+
+        Self {
+            stored_name,
+            display_name,
+            added_at: timestamp,
+        }
+    }
 }

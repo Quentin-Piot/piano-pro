@@ -2,7 +2,7 @@ mod state;
 use state::{Page, UiState};
 
 mod midi_picker;
-use midi_picker::open_midi_file_picker;
+use midi_picker::{load_from_library, open_midi_file_picker};
 
 mod neo_btn;
 use neo_btn::{neo_btn, neo_btn_icon};
@@ -96,6 +96,9 @@ pub struct MenuScene {
     tracks_scroll: nuon::ScrollState,
     settings_scroll: nuon::ScrollState,
     popup: Popup,
+
+    name_input: nuon::TextInputState,
+    renaming_stored_name: Option<String>,
 }
 
 impl MenuScene {
@@ -119,10 +122,20 @@ impl MenuScene {
             tracks_scroll: nuon::ScrollState::new(),
             settings_scroll: nuon::ScrollState::new(),
             popup: Popup::None,
+            name_input: nuon::TextInputState::new(),
+            renaming_stored_name: None,
         }
     }
 
     fn main_ui(&mut self, ctx: &mut Context) {
+        if self.state.pending_import.is_some() && *self.state.current() != Page::NameEntry {
+            if let Some(pending) = &self.state.pending_import {
+                self.name_input
+                    .set_value(pending.entry.display_name.clone());
+                self.state.go_to(Page::NameEntry);
+            }
+        }
+
         if self.state.is_loading() {
             let width = ctx.window_state.logical_size.width;
             let height = ctx.window_state.logical_size.height;
@@ -139,101 +152,15 @@ impl MenuScene {
         let mut nuon = std::mem::replace(&mut self.nuon, nuon::Ui::new());
 
         match self.state.current() {
-            Page::Exit => self.exit_page_ui(ctx, &mut nuon),
             Page::Main => self.main_page_ui(ctx, &mut nuon),
             Page::Settings => self.settings_page_ui(ctx, &mut nuon),
+            Page::Library => self.library_page_ui(ctx, &mut nuon),
+            Page::NameEntry => self.name_entry_page_ui(ctx, &mut nuon),
             Page::TrackSelection => self.tracks_page_ui(ctx, &mut nuon),
             Page::PlayConfirm => self.play_confirm_page_ui(ctx, &mut nuon),
         }
 
         self.nuon = nuon;
-    }
-
-    fn exit_page_ui(&mut self, ctx: &mut Context, ui: &mut nuon::Ui) {
-        let win_w = ctx.window_state.logical_size.width;
-        let win_h = ctx.window_state.logical_size.height;
-
-        let panel_w = (win_w - 80.0).clamp(520.0, 760.0);
-        let panel_h = 236.0;
-        let button_w = (panel_w - 68.0) / 2.0;
-        let button_h = 74.0;
-        let button_gap = 12.0;
-
-        nuon::translate()
-            .x(nuon::center_x(win_w, panel_w))
-            .y(nuon::center_y(win_h, panel_h))
-            .build(ui, |ui| {
-                draw_card(
-                    ui,
-                    panel_w,
-                    panel_h,
-                    28.0,
-                    nuon::theme::DIVIDER,
-                    nuon::theme::PANEL,
-                );
-
-                nuon::quad()
-                    .x(28.0)
-                    .y(24.0)
-                    .size(82.0, 24.0)
-                    .color(nuon::theme::DANGER_SOFT)
-                    .border_radius([12.0; 4])
-                    .build(ui);
-                nuon::label()
-                    .x(28.0)
-                    .y(24.0)
-                    .size(82.0, 24.0)
-                    .font_size(11.0)
-                    .bold(true)
-                    .color(nuon::theme::DANGER)
-                    .text("APP EXIT")
-                    .build(ui);
-
-                nuon::label()
-                    .x(28.0)
-                    .y(60.0)
-                    .text("Close PianoPro?")
-                    .font_size(30.0)
-                    .bold(true)
-                    .text_justify(nuon::TextJustify::Left)
-                    .size(panel_w - 56.0, 34.0)
-                    .build(ui);
-                nuon::label()
-                    .x(28.0)
-                    .y(98.0)
-                    .text("This will close the current session window.")
-                    .font_size(14.0)
-                    .color(nuon::theme::TEXT_MUTED)
-                    .text_justify(nuon::TextJustify::Left)
-                    .size(panel_w - 56.0, 20.0)
-                    .build(ui);
-
-                nuon::translate().pos(0.0, 142.0).build(ui, |ui| {
-                    if neo_btn()
-                        .size(button_w, button_h)
-                        .label("Stay Here")
-                        .subtitle("Return to the workspace")
-                        .build(ui)
-                    {
-                        self.state.go_back();
-                    }
-
-                    nuon::translate()
-                        .x(button_w + button_gap)
-                        .add_to_current(ui);
-
-                    if neo_btn()
-                        .size(button_w, button_h)
-                        .label("Quit PianoPro")
-                        .subtitle("Close the application now")
-                        .icon(icons::exit_icon())
-                        .danger()
-                        .build(ui)
-                    {
-                        ctx.proxy.send_event(NeothesiaEvent::Exit).ok();
-                    }
-                });
-            });
     }
 
     fn play_confirm_page_ui(&mut self, ctx: &mut Context, ui: &mut nuon::Ui) {
@@ -250,7 +177,11 @@ impl MenuScene {
         let song_name = self
             .state
             .song()
-            .map(|s| s.file.name.clone())
+            .map(|s| {
+                s.display_name
+                    .clone()
+                    .unwrap_or_else(|| s.file.name.clone())
+            })
             .unwrap_or_default();
 
         nuon::translate()
@@ -333,11 +264,12 @@ impl MenuScene {
                     .build(ui, |ui| {
                         if neo_btn()
                             .size(button_w, button_h)
-                            .label("Review Setup")
+                            .label("Layout")
+                            .icon(icons::note_list_icon())
                             .centered()
                             .build(ui)
                         {
-                            self.state.go_back();
+                            self.state.go_to(Page::TrackSelection);
                         }
 
                         nuon::translate()
@@ -367,7 +299,6 @@ impl MenuScene {
         let gap = 22.0;
         let right_w = shell_w - left_w - gap - 64.0;
         let action_h = 66.0;
-        let compact_h = 62.0;
 
         nuon::translate()
             .x(nuon::center_x(win_w, shell_w))
@@ -442,7 +373,7 @@ impl MenuScene {
                             nuon::label()
                                 .x(20.0)
                                 .y(46.0)
-                                .text(&song.file.name)
+                                .text(song.display_name.as_ref().unwrap_or(&song.file.name))
                                 .font_size(27.0)
                                 .bold(true)
                                 .text_justify(nuon::TextJustify::Left)
@@ -470,16 +401,6 @@ impl MenuScene {
                             nuon::label()
                                 .x(20.0)
                                 .y(18.0)
-                                .text("START A SESSION")
-                                .font_size(12.0)
-                                .bold(true)
-                                .color(nuon::theme::TEXT_MUTED)
-                                .text_justify(nuon::TextJustify::Left)
-                                .size(left_w - 40.0, 18.0)
-                                .build(ui);
-                            nuon::label()
-                                .x(20.0)
-                                .y(54.0)
                                 .text(
                                     "Import a MIDI file to unlock\nplayback, tracks and transport.",
                                 )
@@ -490,53 +411,54 @@ impl MenuScene {
                                 .build(ui);
                         }
                     });
-
-                    nuon::translate().y(shell_h - 118.0).build(ui, |ui| {
-                        if self.state.song().is_some() {
-                            if neo_btn()
-                                .size(left_w, compact_h)
-                                .label("Play Current Piece")
-                                .icon(icons::play_icon())
-                                .primary()
-                                .build(ui)
-                            {
-                                state::play(&self.state, ctx);
-                            }
-                        }
-                    });
                 });
 
                 nuon::translate()
                     .pos(32.0 + left_w + gap, 42.0)
                     .build(ui, |ui| {
-                        nuon::label()
-                            .text("QUICK ACTIONS")
-                            .font_size(12.0)
-                            .bold(true)
-                            .color(nuon::theme::TEXT_MUTED)
-                            .text_justify(nuon::TextJustify::Left)
-                            .size(right_w, 18.0)
-                            .build(ui);
-                        nuon::label()
-                            .y(22.0)
-                            .text("Everything starts here")
-                            .font_size(28.0)
-                            .bold(true)
-                            .text_justify(nuon::TextJustify::Left)
-                            .size(right_w, 34.0)
-                            .build(ui);
-
-                        nuon::translate().y(90.0).add_to_current(ui);
+                        nuon::translate().y(0.0).add_to_current(ui);
 
                         if neo_btn()
                             .size(right_w, action_h)
-                            .label("Import MIDI")
-                            .icon(icons::note_list_icon())
-                            .meta("TAB")
+                            .label("Start")
+                            .icon(icons::play_icon())
+                            .meta("ENTER")
                             .primary()
                             .build(ui)
                         {
-                            self.futures.push(open_midi_file_picker(&mut self.state));
+                            self.state.go_to(Page::Library);
+                        }
+
+                        nuon::translate().y(action_h + 12.0).add_to_current(ui);
+
+                        // Continue button - only show if there's a last opened song
+                        if let Some(last_song_path) = ctx.config.last_opened_song() {
+                            if neo_btn()
+                                .size(right_w, action_h)
+                                .label("Continue")
+                                .icon(icons::play_circle_icon())
+                                .meta("C")
+                                .primary()
+                                .build(ui)
+                            {
+                                if let Some(stored_name) =
+                                    last_song_path.file_name().and_then(|n| n.to_str())
+                                {
+                                    self.futures
+                                        .push(load_from_library(stored_name.to_string()));
+                                }
+                            }
+                            nuon::translate().y(action_h + 12.0).add_to_current(ui);
+                        }
+
+                        if neo_btn()
+                            .size(right_w, action_h)
+                            .label("Free Play")
+                            .icon(icons::balloon_icon())
+                            .meta("F")
+                            .build(ui)
+                        {
+                            state::freeplay(&self.state, ctx);
                         }
 
                         nuon::translate().y(action_h + 12.0).add_to_current(ui);
@@ -555,42 +477,342 @@ impl MenuScene {
 
                         if neo_btn()
                             .size(right_w, action_h)
-                            .label("Track Layout")
-                            .icon(icons::note_list_icon())
-                            .meta("T")
-                            .build(ui)
-                        {
-                            if self.state.song().is_some() {
-                                self.state.go_to(Page::TrackSelection);
-                            }
-                        }
-
-                        nuon::translate().y(action_h + 12.0).add_to_current(ui);
-
-                        if neo_btn()
-                            .size(right_w, action_h)
-                            .label("Free Play")
-                            .icon(icons::balloon_icon())
-                            .meta("F")
-                            .build(ui)
-                        {
-                            state::freeplay(&self.state, ctx);
-                        }
-
-                        nuon::translate().y(action_h + 12.0).add_to_current(ui);
-
-                        if neo_btn()
-                            .size(right_w, action_h)
                             .label("Exit")
                             .icon(icons::exit_icon())
                             .meta("ESC")
                             .danger()
                             .build(ui)
                         {
-                            self.state.go_back();
+                            ctx.proxy.send_event(NeothesiaEvent::Exit).ok();
                         }
                     });
             });
+    }
+
+    fn library_page_ui(&mut self, ctx: &mut Context, ui: &mut nuon::Ui) {
+        let win_w = ctx.window_state.logical_size.width;
+        let win_h = ctx.window_state.logical_size.height;
+
+        let panel_w = (win_w - 80.0).clamp(600.0, 900.0);
+        let panel_h = (win_h - 88.0).clamp(400.0, 700.0);
+        let button_h = 66.0;
+        let button_w = (panel_w - 64.0) / 2.0;
+        let button_gap = 12.0;
+
+        nuon::translate()
+            .x(nuon::center_x(win_w, panel_w))
+            .y(nuon::center_y(win_h, panel_h))
+            .build(ui, |ui| {
+                draw_card(
+                    ui,
+                    panel_w,
+                    panel_h,
+                    28.0,
+                    nuon::theme::DIVIDER,
+                    nuon::theme::PANEL,
+                );
+
+                nuon::quad()
+                    .x(28.0)
+                    .y(24.0)
+                    .size(82.0, 24.0)
+                    .color(nuon::theme::PRIMARY_SOFT)
+                    .border_radius([12.0; 4])
+                    .build(ui);
+                nuon::label()
+                    .x(28.0)
+                    .y(24.0)
+                    .size(82.0, 24.0)
+                    .font_size(11.0)
+                    .bold(true)
+                    .color(nuon::theme::PRIMARY)
+                    .text("LIBRARY")
+                    .build(ui);
+
+                let entries = ctx.config.library_entries();
+
+                if entries.is_empty() {
+                    nuon::label()
+                        .x(28.0)
+                        .y(120.0)
+                        .text("No MIDI files in library yet")
+                        .font_size(20.0)
+                        .bold(true)
+                        .color(nuon::theme::TEXT)
+                        .text_justify(nuon::TextJustify::Center)
+                        .size(panel_w - 56.0, 30.0)
+                        .build(ui);
+                    nuon::label()
+                        .x(28.0)
+                        .y(170.0)
+                        .text("Import MIDI files to get started")
+                        .font_size(14.0)
+                        .color(nuon::theme::TEXT_MUTED)
+                        .text_justify(nuon::TextJustify::Center)
+                        .size(panel_w - 56.0, 20.0)
+                        .build(ui);
+                } else {
+                    nuon::label()
+                        .x(28.0)
+                        .y(70.0)
+                        .text(format!("{} piece(s) in library", entries.len()))
+                        .font_size(14.0)
+                        .bold(true)
+                        .color(nuon::theme::TEXT)
+                        .text_justify(nuon::TextJustify::Left)
+                        .size(panel_w - 56.0, 20.0)
+                        .build(ui);
+
+                    let item_h = 50.0;
+                    let item_gap = 8.0;
+                    let max_items = ((panel_h - 200.0) / (item_h + item_gap)) as usize;
+
+                    // Clone entries to avoid borrow of ctx while building UI
+                    let entries_snapshot: Vec<_> = entries
+                        .iter()
+                        .map(|e| (e.stored_name.clone(), e.display_name.clone()))
+                        .collect();
+
+                    nuon::translate().pos(28.0, 110.0).build(ui, |ui| {
+                        let btn_gap = 8.0;
+                        let edit_btn_w = 40.0;
+                        let title_btn_w = panel_w - 56.0 - btn_gap - edit_btn_w;
+
+                        for (idx, (stored_name, display_name)) in
+                            entries_snapshot.iter().take(max_items).enumerate()
+                        {
+                            nuon::translate()
+                                .y((item_h + item_gap) * idx as f32)
+                                .build(ui, |ui| {
+                                    // Title button - load/play
+                                    if neo_btn()
+                                        .size(title_btn_w, item_h)
+                                        .label(display_name)
+                                        .build(ui)
+                                    {
+                                        self.futures.push(load_from_library(stored_name.clone()));
+                                    }
+
+                                    // Edit button
+                                    nuon::translate()
+                                        .x(title_btn_w + btn_gap)
+                                        .add_to_current(ui);
+
+                                    if neo_btn()
+                                        .id(nuon::Id::hash(stored_name))
+                                        .size(edit_btn_w, item_h)
+                                        .icon(icons::pencil_icon())
+                                        .centered()
+                                        .build(ui)
+                                    {
+                                        self.renaming_stored_name = Some(stored_name.clone());
+                                        self.name_input.set_value(display_name.clone());
+                                        self.state.go_to(Page::NameEntry);
+                                    }
+                                });
+                        }
+
+                        if entries_snapshot.len() > max_items {
+                            nuon::label()
+                                .x(0.0)
+                                .y((item_h + item_gap) * max_items as f32 + 10.0)
+                                .text(format!(
+                                    "... and {} more",
+                                    entries_snapshot.len() - max_items
+                                ))
+                                .font_size(12.0)
+                                .color(nuon::theme::TEXT_MUTED)
+                                .text_justify(nuon::TextJustify::Left)
+                                .size(panel_w - 56.0, 16.0)
+                                .build(ui);
+                        }
+                    });
+                }
+
+                nuon::translate()
+                    .pos(
+                        nuon::center_x(panel_w, button_w * 2.0 + button_gap),
+                        panel_h - 90.0,
+                    )
+                    .build(ui, |ui| {
+                        if neo_btn()
+                            .size(button_w, button_h)
+                            .label("Back")
+                            .centered()
+                            .build(ui)
+                        {
+                            self.state.go_back();
+                        }
+
+                        nuon::translate()
+                            .x(button_w + button_gap)
+                            .add_to_current(ui);
+
+                        if neo_btn()
+                            .size(button_w, button_h)
+                            .label("Import MIDI")
+                            .primary()
+                            .centered()
+                            .build(ui)
+                        {
+                            self.futures.push(open_midi_file_picker(&mut self.state));
+                        }
+                    });
+            });
+    }
+
+    fn name_entry_page_ui(&mut self, ctx: &mut Context, ui: &mut nuon::Ui) {
+        let win_w = ctx.window_state.logical_size.width;
+        let win_h = ctx.window_state.logical_size.height;
+
+        let panel_w = (win_w - 80.0).clamp(600.0, 900.0);
+        let panel_h = 300.0;
+        let button_h = 66.0;
+        let button_w = (panel_w - 64.0) / 2.0;
+        let button_gap = 12.0;
+
+        nuon::translate()
+            .x(nuon::center_x(win_w, panel_w))
+            .y(nuon::center_y(win_h, panel_h))
+            .build(ui, |ui| {
+                draw_card(
+                    ui,
+                    panel_w,
+                    panel_h,
+                    28.0,
+                    nuon::theme::DIVIDER,
+                    nuon::theme::PANEL,
+                );
+
+                nuon::quad()
+                    .x(28.0)
+                    .y(24.0)
+                    .size(82.0, 24.0)
+                    .color(nuon::theme::PRIMARY_SOFT)
+                    .border_radius([12.0; 4])
+                    .build(ui);
+                nuon::label()
+                    .x(28.0)
+                    .y(24.0)
+                    .size(82.0, 24.0)
+                    .font_size(11.0)
+                    .bold(true)
+                    .color(nuon::theme::PRIMARY)
+                    .text("NAME ENTRY")
+                    .build(ui);
+
+                nuon::label()
+                    .x(28.0)
+                    .y(70.0)
+                    .text("Name your piece")
+                    .font_size(18.0)
+                    .bold(true)
+                    .color(nuon::theme::TEXT)
+                    .text_justify(nuon::TextJustify::Left)
+                    .size(panel_w - 56.0, 24.0)
+                    .build(ui);
+
+                // Render text input background
+                nuon::quad()
+                    .x(28.0)
+                    .y(110.0)
+                    .size(panel_w - 56.0, 50.0)
+                    .color(nuon::theme::SURFACE_ELEVATED)
+                    .border_radius([6.0; 4])
+                    .build(ui);
+
+                // Render text input border
+                nuon::quad()
+                    .x(28.0)
+                    .y(110.0)
+                    .size(panel_w - 56.0, 50.0)
+                    .color(nuon::theme::PRIMARY_SOFT)
+                    .border_radius([6.0; 4])
+                    .build(ui);
+
+                // Display input value with embedded cursor
+                let text_x = 38.0;
+                let text_y = 120.0;
+                let cursor_pos = self.name_input.cursor.min(self.name_input.value.len());
+                let before = &self.name_input.value[..cursor_pos];
+                let after = &self.name_input.value[cursor_pos..];
+                let display_text = format!("{}|{}", before, after);
+
+                nuon::label()
+                    .x(text_x)
+                    .y(text_y)
+                    .text(&display_text)
+                    .font_size(16.0)
+                    .color(nuon::theme::TEXT)
+                    .text_justify(nuon::TextJustify::Left)
+                    .size(panel_w - 76.0, 30.0)
+                    .build(ui);
+
+                nuon::translate()
+                    .pos(
+                        nuon::center_x(panel_w, button_w * 2.0 + button_gap),
+                        panel_h - 90.0,
+                    )
+                    .build(ui, |ui| {
+                        if neo_btn()
+                            .size(button_w, button_h)
+                            .label("Cancel")
+                            .centered()
+                            .build(ui)
+                        {
+                            self.cancel_name_entry();
+                            self.state.go_back();
+                        }
+
+                        nuon::translate()
+                            .x(button_w + button_gap)
+                            .add_to_current(ui);
+
+                        if neo_btn()
+                            .size(button_w, button_h)
+                            .label("Save")
+                            .primary()
+                            .centered()
+                            .build(ui)
+                        {
+                            if self.confirm_name_entry(ctx) {
+                                self.name_input.clear();
+                                self.state.go_back();
+                            }
+                        }
+                    });
+            });
+    }
+
+    fn cancel_name_entry(&mut self) {
+        if self.renaming_stored_name.is_none() {
+            if let Some(pending) = self.state.pending_import.take() {
+                let _ = std::fs::remove_file(&pending.stored_path);
+            }
+        }
+        self.renaming_stored_name = None;
+        self.name_input.clear();
+    }
+
+    fn confirm_name_entry(&mut self, ctx: &mut Context) -> bool {
+        if let Some(rename_stored_name) = self.renaming_stored_name.take() {
+            if ctx
+                .config
+                .update_midi_entry_name(&rename_stored_name, self.name_input.value.clone())
+            {
+                ctx.config.save();
+                true
+            } else {
+                log::warn!("Failed to update MIDI entry name: stored_name not found");
+                false
+            }
+        } else if let Some(pending) = self.state.pending_import.take() {
+            ctx.config.add_midi_to_library(pending.entry.clone());
+            ctx.config.save();
+            true
+        } else {
+            false
+        }
     }
 }
 
@@ -660,34 +882,17 @@ impl Scene for MenuScene {
         }
 
         match self.state.current() {
-            Page::Exit => {
-                if event.key_pressed(Key::Named(NamedKey::Enter)) {
-                    ctx.proxy.send_event(NeothesiaEvent::Exit).unwrap();
-                }
-
-                if event.key_pressed(Key::Named(NamedKey::Escape)) {
-                    self.state.go_back();
-                }
-            }
             Page::Main => {
-                if event.key_pressed(Key::Named(NamedKey::Tab)) {
-                    self.futures.push(open_midi_file_picker(&mut self.state));
-                }
-
                 if event.key_pressed(Key::Named(NamedKey::Enter)) {
-                    state::play(&self.state, ctx)
+                    self.state.go_to(Page::Library);
                 }
 
                 if event.key_pressed(Key::Named(NamedKey::Escape)) {
-                    self.state.go_back();
+                    ctx.proxy.send_event(NeothesiaEvent::Exit).ok();
                 }
 
                 if event.key_pressed(Key::Character("s")) {
                     self.state.go_to(Page::Settings);
-                }
-
-                if event.key_pressed(Key::Character("t")) {
-                    self.state.go_to(Page::TrackSelection);
                 }
 
                 if event.key_pressed(Key::Character("f")) {
@@ -697,6 +902,73 @@ impl Scene for MenuScene {
             Page::Settings => {
                 if event.key_pressed(Key::Named(NamedKey::Escape)) {
                     self.state.go_back();
+                }
+            }
+            Page::Library => {
+                if event.key_pressed(Key::Named(NamedKey::Tab)) {
+                    self.futures.push(open_midi_file_picker(&mut self.state));
+                }
+
+                if event.key_pressed(Key::Named(NamedKey::Escape)) {
+                    self.state.go_back();
+                }
+            }
+            Page::NameEntry => {
+                if event.key_pressed(Key::Named(NamedKey::Enter)) {
+                    if self.confirm_name_entry(ctx) {
+                        self.name_input.clear();
+                        self.state.go_back();
+                    }
+                }
+
+                if event.key_pressed(Key::Named(NamedKey::Escape)) {
+                    self.cancel_name_entry();
+                    self.state.go_back();
+                }
+
+                // Handle text input
+                match event {
+                    WindowEvent::KeyboardInput { event, .. } => {
+                        use winit::keyboard::Key;
+                        if event.state == winit::event::ElementState::Pressed {
+                            match &event.logical_key {
+                                Key::Named(named_key) => match named_key {
+                                    NamedKey::Backspace => {
+                                        self.name_input.backspace();
+                                    }
+                                    NamedKey::Delete => {
+                                        self.name_input.delete();
+                                    }
+                                    NamedKey::ArrowLeft => {
+                                        self.name_input.move_cursor_left();
+                                    }
+                                    NamedKey::ArrowRight => {
+                                        self.name_input.move_cursor_right();
+                                    }
+                                    NamedKey::Home => {
+                                        self.name_input.move_cursor_home();
+                                    }
+                                    NamedKey::End => {
+                                        self.name_input.move_cursor_end();
+                                    }
+                                    NamedKey::Space => {
+                                        self.name_input.insert_char(' ');
+                                    }
+                                    _ => {}
+                                },
+                                Key::Character(s) => {
+                                    // Handle character input
+                                    for c in s.chars() {
+                                        if !c.is_control() {
+                                            self.name_input.insert_char(c);
+                                        }
+                                    }
+                                }
+                                _ => {}
+                            }
+                        }
+                    }
+                    _ => {}
                 }
             }
             Page::TrackSelection => {
@@ -711,6 +983,10 @@ impl Scene for MenuScene {
             Page::PlayConfirm => {
                 if event.key_pressed(Key::Named(NamedKey::Enter)) {
                     state::play(&self.state, ctx);
+                }
+
+                if event.key_pressed(Key::Character("l")) {
+                    self.state.go_to(Page::TrackSelection);
                 }
 
                 if event.key_pressed(Key::Named(NamedKey::Escape)) {
