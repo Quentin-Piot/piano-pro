@@ -1,9 +1,9 @@
 import { defineConfig } from "vitepress";
 
 export default defineConfig({
-  title: "Neothesia",
+  title: "PianoPro",
   description: "Flashy Synthesia Like Software For Linux, Windows and MacOs",
-  base: "/Neothesia/",
+  base: "/PianoPro/",
   themeConfig: {
     nav: [
       { text: "Home", link: "/" },
@@ -23,7 +23,7 @@ export default defineConfig({
     ],
 
     socialLinks: [
-      { icon: "github", link: "https://github.com/PolyMeilex/Neothesia" },
+      { icon: "github", link: "https://github.com/Quentin-Piot/piano-pro" },
     ],
   },
 });

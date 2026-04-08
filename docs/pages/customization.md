@@ -2,7 +2,7 @@
 
 ## How to change color schema
 
-It is available in `setting.ron` (file created automatically after first launch of neothesia):
+It is available in `setting.ron` (file created automatically after first launch of PianoPro):
 
 ```
 Config(
@@ -21,4 +21,4 @@ Config(
 
 ### MacOS
 
-Right click on Neothesia.app and click "Open package contents" and navigate to `Contents/Resources/setting.ron`
+Right click on PianoPro.app and click "Open package contents" and navigate to `Contents/Resources/setting.ron`
