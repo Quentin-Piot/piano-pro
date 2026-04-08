@@ -6,7 +6,16 @@ on:
       - "v*"
 
 jobs:
+  create_release:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Create Release
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: gh release create ${{ github.ref_name }} --repo ${{ github.repository }} --title ${{ github.ref_name }} --generate-notes
+
   build_ubuntu:
+    needs: create_release
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v6
@@ -22,6 +31,7 @@ jobs:
         run: gh release upload ${{github.ref_name}} neothesia-ubuntu.zip
 
   build_ubuntu_recorder:
+    needs: create_release
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v6
@@ -38,6 +48,7 @@ jobs:
         run: gh release upload ${{github.ref_name}} neothesia-cli-ubuntu.zip
 
   build_windows:
+    needs: create_release
     runs-on: windows-latest
     steps:
       - uses: actions/checkout@v6
@@ -53,6 +64,7 @@ jobs:
         run: gh release upload ${{github.ref_name}} neothesia.exe
 
   build_windows_recorder:
+    needs: create_release
     runs-on: windows-latest
 
     env:
@@ -72,6 +84,7 @@ jobs:
         run: gh release upload ${{github.ref_name}} neothesia-cli.exe
 
   build_macos:
+    needs: create_release
     runs-on: macos-latest
 
     env:

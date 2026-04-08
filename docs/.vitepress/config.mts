@@ -3,7 +3,7 @@ import { defineConfig } from "vitepress";
 export default defineConfig({
   title: "PianoPro",
   description: "Flashy Synthesia Like Software For Linux, Windows and MacOs",
-  base: "/PianoPro/",
+  base: "/piano-pro/",
   themeConfig: {
     nav: [
       { text: "Home", link: "/" },
