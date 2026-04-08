@@ -1,12 +1,21 @@
-<!DOCTYPE html>
-<html>
-<head>
-  <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>PianoPro</title>
-</head>
-<body style="margin:0; overflow:hidden; background:#f5f8fc">
-  <canvas id="pianopro-canvas" style="width:100vw; height:100vh; display:block"></canvas>
-  <link data-trunk rel="rust" href="Cargo.toml" data-wasm-opt="z" data-bin="neothesia-web">
-</body>
+<!doctype html>
+<html lang="en">
+    <head>
+        <meta charset="utf-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1" />
+        <title>PianoPro</title>
+    </head>
+    <body style="margin: 0; overflow: hidden; background: #f5f8fc">
+        <canvas
+            id="pianopro-canvas"
+            style="width: 100vw; height: 100vh; display: block"
+        ></canvas>
+        <link
+            data-trunk
+            rel="rust"
+            href="Cargo.toml"
+            data-wasm-opt="z"
+            data-bin="neothesia-web"
+        />
+    </body>
 </html>

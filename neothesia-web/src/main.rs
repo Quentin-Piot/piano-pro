@@ -1,11 +1,6 @@
 #[cfg(target_arch = "wasm32")]
 mod wasm {
-    use std::{
-        cell::RefCell,
-        rc::Rc,
-        sync::Arc,
-        time::{Duration, Instant},
-    };
+    use std::{cell::RefCell, rc::Rc, sync::Arc, time::Duration};
 
     use midi_file::midly::MidiMessage;
     use neothesia_core::{
@@ -18,6 +13,7 @@ mod wasm {
     use wgpu_jumpstart::Surface;
     use winit::{
         application::ApplicationHandler,
+        dpi::PhysicalSize,
         event::WindowEvent,
         event_loop::{ActiveEventLoop, EventLoop},
         platform::web::{EventLoopExtWebSys, WindowAttributesExtWebSys},
@@ -34,7 +30,7 @@ mod wasm {
         keyboard: KeyboardRenderer,
         waterfall: WaterfallRenderer,
         quad_renderer: QuadRenderer,
-        frame_timestamp: Instant,
+        frame_timestamp: f64,
     }
 
     impl WebPiano {
@@ -42,7 +38,10 @@ mod wasm {
             window: Arc<Window>,
             canvas: web_sys::HtmlCanvasElement,
         ) -> Result<Self, String> {
-            let size = window.inner_size();
+            let size = initial_surface_size(&window, &canvas);
+            canvas.set_width(size.width);
+            canvas.set_height(size.height);
+
             let (gpu, surface) = Gpu::for_window(
                 || wgpu::SurfaceTarget::Canvas(canvas.clone()),
                 size.width,
@@ -89,7 +88,7 @@ mod wasm {
                 keyboard,
                 waterfall,
                 quad_renderer,
-                frame_timestamp: Instant::now(),
+                frame_timestamp: now_seconds(),
             };
             app.resize();
             app.gpu.submit();
@@ -217,8 +216,8 @@ mod wasm {
         }
 
         fn redraw(&mut self) {
-            let now = Instant::now();
-            let delta = now.duration_since(self.frame_timestamp);
+            let now = now_seconds();
+            let delta = Duration::from_secs_f64((now - self.frame_timestamp).max(0.0));
             self.frame_timestamp = now;
 
             self.update(delta);
@@ -296,6 +295,24 @@ mod wasm {
         }
     }
 
+    fn initial_surface_size(
+        window: &Window,
+        canvas: &web_sys::HtmlCanvasElement,
+    ) -> PhysicalSize<u32> {
+        let size = window.inner_size();
+        if size.width > 0 && size.height > 0 {
+            return size;
+        }
+
+        let scale_factor = web_sys::window()
+            .map(|window| window.device_pixel_ratio())
+            .unwrap_or(1.0);
+        let width = (f64::from(canvas.client_width()).max(1.0) * scale_factor).round() as u32;
+        let height = (f64::from(canvas.client_height()).max(1.0) * scale_factor).round() as u32;
+
+        PhysicalSize::new(width.max(1), height.max(1))
+    }
+
     fn keyboard_layout(
         width: f32,
         height: f32,
@@ -311,6 +328,13 @@ mod wasm {
 
     fn log_browser_error(message: &str) {
         web_sys::console::error_1(&message.into());
+    }
+
+    fn now_seconds() -> f64 {
+        web_sys::window()
+            .and_then(|window| window.performance())
+            .map(|performance| performance.now() / 1000.0)
+            .unwrap_or(0.0)
     }
 
     fn set_panic_hook() {
