@@ -111,6 +111,7 @@ impl NeoBtn {
         self
     }
 
+    #[allow(dead_code)]
     pub fn subtitle(mut self, subtitle: impl Into<String>) -> Self {
         self.subtitle = subtitle.into();
         self

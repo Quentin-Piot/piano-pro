@@ -1,6 +1,9 @@
 mod state;
 use state::{Page, UiState};
 
+mod audio_import;
+use audio_import::{AudioImportState, convert_selected_audio, open_audio_file_picker};
+
 mod midi_picker;
 use midi_picker::{load_from_library, open_midi_file_picker};
 
@@ -96,6 +99,7 @@ pub struct MenuScene {
     tracks_scroll: nuon::ScrollState,
     settings_scroll: nuon::ScrollState,
     popup: Popup,
+    audio_spinner_phase: f32,
 
     name_input: nuon::TextInputState,
     renaming_stored_name: Option<String>,
@@ -122,6 +126,7 @@ impl MenuScene {
             tracks_scroll: nuon::ScrollState::new(),
             settings_scroll: nuon::ScrollState::new(),
             popup: Popup::None,
+            audio_spinner_phase: 0.0,
             name_input: nuon::TextInputState::new(),
             renaming_stored_name: None,
         }
@@ -155,6 +160,7 @@ impl MenuScene {
             Page::Main => self.main_page_ui(ctx, &mut nuon),
             Page::Settings => self.settings_page_ui(ctx, &mut nuon),
             Page::Library => self.library_page_ui(ctx, &mut nuon),
+            Page::AudioImport => self.audio_import_page_ui(ctx, &mut nuon),
             Page::NameEntry => self.name_entry_page_ui(ctx, &mut nuon),
             Page::TrackSelection => self.tracks_page_ui(ctx, &mut nuon),
             Page::PlayConfirm => self.play_confirm_page_ui(ctx, &mut nuon),
@@ -431,6 +437,18 @@ impl MenuScene {
 
                         nuon::translate().y(action_h + 12.0).add_to_current(ui);
 
+                        if neo_btn()
+                            .size(right_w, action_h)
+                            .label("Import Audio")
+                            .icon(icons::note_list_icon())
+                            .meta("A")
+                            .build(ui)
+                        {
+                            self.futures.push(open_audio_file_picker(&mut self.state));
+                        }
+
+                        nuon::translate().y(action_h + 12.0).add_to_current(ui);
+
                         // Continue button - only show if there's a last opened song
                         if let Some(last_song_path) = ctx.config.last_opened_song() {
                             if neo_btn()
@@ -661,6 +679,172 @@ impl MenuScene {
             });
     }
 
+    fn audio_import_page_ui(&mut self, ctx: &mut Context, ui: &mut nuon::Ui) {
+        let win_w = ctx.window_state.logical_size.width;
+        let win_h = ctx.window_state.logical_size.height;
+
+        let panel_w = (win_w - 80.0).clamp(600.0, 860.0);
+        let panel_h = 360.0;
+        let button_h = 66.0;
+        let button_w = (panel_w - 64.0) / 2.0;
+        let button_gap = 12.0;
+
+        let selected_path = self
+            .state
+            .audio_import
+            .selected_path()
+            .and_then(|path| path.file_name())
+            .and_then(|name| name.to_str())
+            .unwrap_or("No audio file selected")
+            .to_string();
+
+        let status_text = match &self.state.audio_import {
+            AudioImportState::Empty | AudioImportState::Selected { .. } => {
+                "Ready to convert audio into MIDI".to_string()
+            }
+            AudioImportState::Converting { .. } => {
+                let frames = ["|", "/", "-", "\\"];
+                let frame = frames[(self.audio_spinner_phase as usize) % frames.len()];
+                format!("{frame} Converting audio")
+            }
+            AudioImportState::Error { message, .. } => {
+                let mut message = message.clone();
+                if message.len() > 150 {
+                    message.truncate(147);
+                    message.push_str("...");
+                }
+                message
+            }
+        };
+
+        let is_converting = self.state.audio_import.is_converting();
+
+        nuon::translate()
+            .x(nuon::center_x(win_w, panel_w))
+            .y(nuon::center_y(win_h, panel_h))
+            .build(ui, |ui| {
+                draw_card(
+                    ui,
+                    panel_w,
+                    panel_h,
+                    28.0,
+                    nuon::theme::DIVIDER,
+                    nuon::theme::PANEL,
+                );
+
+                nuon::quad()
+                    .x(28.0)
+                    .y(24.0)
+                    .size(118.0, 24.0)
+                    .color(nuon::theme::PRIMARY_SOFT)
+                    .border_radius([12.0; 4])
+                    .build(ui);
+                nuon::label()
+                    .x(28.0)
+                    .y(24.0)
+                    .size(118.0, 24.0)
+                    .font_size(11.0)
+                    .bold(true)
+                    .color(nuon::theme::PRIMARY)
+                    .text("AUDIO IMPORT")
+                    .build(ui);
+
+                nuon::label()
+                    .x(28.0)
+                    .y(66.0)
+                    .text("Convert audio")
+                    .font_size(28.0)
+                    .bold(true)
+                    .color(nuon::theme::TEXT)
+                    .text_justify(nuon::TextJustify::Left)
+                    .size(panel_w - 56.0, 34.0)
+                    .build(ui);
+
+                nuon::translate().pos(28.0, 122.0).build(ui, |ui| {
+                    draw_card(
+                        ui,
+                        panel_w - 56.0,
+                        96.0,
+                        14.0,
+                        nuon::theme::DIVIDER,
+                        nuon::theme::SURFACE,
+                    );
+                    nuon::label()
+                        .x(16.0)
+                        .y(14.0)
+                        .size(panel_w - 88.0, 16.0)
+                        .font_size(11.0)
+                        .bold(true)
+                        .color(nuon::theme::TEXT_MUTED)
+                        .text_justify(nuon::TextJustify::Left)
+                        .text("SELECTED AUDIO")
+                        .build(ui);
+                    nuon::label()
+                        .x(16.0)
+                        .y(36.0)
+                        .size(panel_w - 88.0, 24.0)
+                        .font_size(18.0)
+                        .bold(true)
+                        .color(nuon::theme::TEXT)
+                        .text_justify(nuon::TextJustify::Left)
+                        .text(&selected_path)
+                        .build(ui);
+                    nuon::label()
+                        .x(16.0)
+                        .y(64.0)
+                        .size(panel_w - 88.0, 18.0)
+                        .font_size(13.0)
+                        .color(match self.state.audio_import {
+                            AudioImportState::Error { .. } => nuon::theme::DANGER,
+                            _ => nuon::theme::TEXT_MUTED,
+                        })
+                        .text_justify(nuon::TextJustify::Left)
+                        .text(&status_text)
+                        .build(ui);
+                });
+
+                nuon::translate()
+                    .pos(
+                        nuon::center_x(panel_w, button_w * 2.0 + button_gap),
+                        panel_h - 90.0,
+                    )
+                    .build(ui, |ui| {
+                        if neo_btn()
+                            .size(button_w, button_h)
+                            .label(if is_converting { "Working" } else { "Back" })
+                            .centered()
+                            .build(ui)
+                            && !is_converting
+                        {
+                            self.state.audio_import = AudioImportState::Empty;
+                            self.state.go_back();
+                        }
+
+                        nuon::translate()
+                            .x(button_w + button_gap)
+                            .add_to_current(ui);
+
+                        let action_label = match self.state.audio_import {
+                            AudioImportState::Error { .. } => "Try Again",
+                            AudioImportState::Converting { .. } => "Converting",
+                            _ => "Convert",
+                        };
+
+                        if neo_btn()
+                            .size(button_w, button_h)
+                            .label(action_label)
+                            .primary()
+                            .centered()
+                            .build(ui)
+                            && !is_converting
+                            && let Some(future) = convert_selected_audio(&mut self.state)
+                        {
+                            self.futures.push(future);
+                        }
+                    });
+            });
+    }
+
     fn name_entry_page_ui(&mut self, ctx: &mut Context, ui: &mut nuon::Ui) {
         let win_w = ctx.window_state.logical_size.width;
         let win_h = ctx.window_state.logical_size.height;
@@ -821,6 +1005,7 @@ impl Scene for MenuScene {
     fn update(&mut self, ctx: &mut Context, delta: Duration) {
         self.quad_pipeline.clear();
         self.bg_pipeline.update_time(delta);
+        self.audio_spinner_phase = (self.audio_spinner_phase + delta.as_secs_f32() * 8.0) % 4.0;
         self.state.tick(ctx);
 
         self.futures
@@ -898,6 +1083,10 @@ impl Scene for MenuScene {
                 if event.key_pressed(Key::Character("f")) {
                     state::freeplay(&self.state, ctx);
                 }
+
+                if event.key_pressed(Key::Character("a")) {
+                    self.futures.push(open_audio_file_picker(&mut self.state));
+                }
             }
             Page::Settings => {
                 if event.key_pressed(Key::Named(NamedKey::Escape)) {
@@ -910,6 +1099,21 @@ impl Scene for MenuScene {
                 }
 
                 if event.key_pressed(Key::Named(NamedKey::Escape)) {
+                    self.state.go_back();
+                }
+            }
+            Page::AudioImport => {
+                if event.key_pressed(Key::Named(NamedKey::Enter))
+                    && !self.state.audio_import.is_converting()
+                    && let Some(future) = convert_selected_audio(&mut self.state)
+                {
+                    self.futures.push(future);
+                }
+
+                if event.key_pressed(Key::Named(NamedKey::Escape))
+                    && !self.state.audio_import.is_converting()
+                {
+                    self.state.audio_import = AudioImportState::Empty;
                     self.state.go_back();
                 }
             }

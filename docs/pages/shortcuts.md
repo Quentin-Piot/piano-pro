@@ -11,8 +11,16 @@
 
 ### In Main Menu
 
-| Key            | Action                  |
-| -------------- | ----------------------- |
-| **Tab**        | Open file select dialog |
-| **Left/Right** | Change output           |
-| **Enter**      | Start playing           |
+| Key            | Action                           |
+| -------------- | -------------------------------- |
+| **Tab**        | Open file select dialog          |
+| **`a`**        | Open audio import dialog         |
+| **Left/Right** | Change output                    |
+| **Enter**      | Start playing                    |
+
+### In Audio Import
+
+| Key        | Action                    |
+| ---------- | ------------------------- |
+| **Enter**  | Convert selected audio    |
+| **Esc**    | Go back (disabled during conversion) |

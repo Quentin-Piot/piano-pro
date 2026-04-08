@@ -1,5 +1,6 @@
 use std::collections::VecDeque;
 
+use super::audio_import::AudioImportState;
 use super::midi_picker::PendingImport;
 use crate::{NeothesiaEvent, context::Context, output_manager::OutputDescriptor, song::Song};
 
@@ -19,6 +20,7 @@ pub struct UiState {
     page_stack: VecDeque<Page>,
 
     pub pending_import: Option<PendingImport>,
+    pub audio_import: AudioImportState,
 }
 
 impl UiState {
@@ -35,6 +37,7 @@ impl UiState {
             song,
             page_stack,
             pending_import: None,
+            audio_import: AudioImportState::Empty,
         }
     }
 
@@ -101,6 +104,7 @@ pub enum Page {
     Main,
     Settings,
     Library,
+    AudioImport,
     NameEntry,
     TrackSelection,
     PlayConfirm,

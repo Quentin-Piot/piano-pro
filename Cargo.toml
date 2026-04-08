@@ -22,6 +22,7 @@ edition = "2024"
 [workspace.dependencies]
 wgpu-jumpstart = { path = "./wgpu-jumpstart" }
 neothesia-core = { path = "./neothesia-core" }
+neothesia-ai = { path = "./neothesia-ai" }
 neothesia-image = { path = "./neothesia-image" }
 midi-file = { path = "./midi-file" }
 midi-io = { path = "./midi-io" }

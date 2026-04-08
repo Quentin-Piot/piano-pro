@@ -21,6 +21,9 @@ features:
   - title: MIDI Visualizer
     icon: 🎹
     details: Learn how to play piano by watching falling blocks with your favorite songs
+  - title: Audio to MIDI
+    icon: 🎵
+    details: Convert audio recordings into MIDI using AI transcription
   - title: Connect your MIDI keyboard
     icon: 🔌
     details: Play along on your keyboard or use the integrated synthesizer

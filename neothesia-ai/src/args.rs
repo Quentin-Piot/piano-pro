@@ -4,7 +4,7 @@ fn print_help() {
     let help = [
         "  -i, --input <audio-input-file>",
         "  -o, --output <midi-output-file>",
-        "  -m, --model <rten-model-file>",
+        "  -m, --model <rten-model-file>  Optional, defaults to the bundled model",
     ];
     println!("Options:");
     println!("{}", help.join("\n"));
@@ -15,7 +15,7 @@ fn print_help() {
 pub struct Args {
     pub input: PathBuf,
     pub output: PathBuf,
-    pub model: PathBuf,
+    pub model: Option<PathBuf>,
 }
 
 impl Args {
@@ -56,14 +56,10 @@ impl Args {
             anyhow::bail!("`--output` midi file missing");
         };
 
-        let Some(model) = model else {
-            anyhow::bail!("`--model` rten model file missing");
-        };
-
         Ok(Args {
             input: PathBuf::from(input),
             output: PathBuf::from(output),
-            model: PathBuf::from(model),
+            model: model.map(PathBuf::from),
         })
     }
 }

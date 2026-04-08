@@ -1,3 +1,7 @@
+<p align="center">
+  <img src="./assets/logo.png" alt="PianoPro" width="220" />
+</p>
+
 # PianoPro
 
 **Documentation:** [quentin-piot.github.io/piano-pro](https://quentin-piot.github.io/piano-pro/)
@@ -8,6 +12,10 @@ It extends [Neothesia](https://github.com/PolyMeilex/Neothesia), a great open-so
 
 The goal is a focused, no-nonsense workspace for piano practice and analysis — something closer to what Guitar Pro is for guitarists.
 
+<p align="center">
+  <img src="./assets/screenshots/screenshot2.png" alt="PianoPro playback screen" width="100%" />
+</p>
+
 ## What this version adds
 
 Neothesia is GPU-accelerated, fast, and clean. This fork keeps all of that and builds the learning layer on top:
@@ -15,11 +23,10 @@ Neothesia is GPU-accelerated, fast, and clean. This fork keeps all of that and b
 | | Neothesia | PianoPro |
 |---|---|---|
 | MIDI playback & visualization | ✅ | ✅ |
-| Track mute / visibility in playback | ❌ | ✅ |
-| Always-visible transport bar | ❌ | ✅ |
-| Play confirmation dialog | ❌ | ✅ |
+| Track mute / visibility in playback | Partial | ✅ |
+| MIDI library with persistence | ❌ | ✅ |
+| Audio → MIDI transcription | Partial | ✅ |
 | Sheet music display | ❌ | 🚧 Planned |
-| Audio → MIDI transcription | ❌ | 🚧 Planned |
 | Hands-separate practice mode | ❌ | 🚧 Planned |
 | Loop section (A/B repeat) | Partial | 🚧 Improving |
 | Performance scoring | ❌ | 🚧 Planned |
@@ -28,6 +35,9 @@ Neothesia is GPU-accelerated, fast, and clean. This fork keeps all of that and b
 ## Current Features
 
 - MIDI file import and playback with synchronized piano visualization
+- Audio file import with automatic transcription to MIDI (Basic Pitch model)
+- MIDI library with persistent storage and piece renaming
+- Continue button to instantly resume last played piece
 - Per-track controls during playback (mute, auto, human-play modes)
 - Track visibility toggle — hides notes from both waterfall and keyboard
 - Transport bar always visible: speed control, progress scrubbing, loop markers
@@ -45,10 +55,10 @@ Features planned or in progress, roughly by priority:
 - Chord symbol overlay
 - Fingering number annotations
 
-**Auto-transcription**
-- Audio file → MIDI conversion (record yourself playing, get a MIDI back)
-- Microphone input for real-time note detection and feedback
-- Chord recognition from audio
+**Auto-transcription (in progress)**
+- ✅ Audio file → MIDI conversion (WAV, MP3 via Basic Pitch)
+- 🚧 Microphone input for real-time note detection and feedback
+- 🚧 Chord recognition from audio
 
 **Practice tools**
 - Hands-separate mode (left hand / right hand isolation)
@@ -71,7 +81,6 @@ Features planned or in progress, roughly by priority:
 
 <p align="center">
   <img src="./assets/screenshots/screenshot1.png" alt="PianoPro main menu" width="100%" />
-  <img src="./assets/screenshots/screenshot2.png" alt="PianoPro playback screen" width="100%" />
 </p>
 
 ## Building

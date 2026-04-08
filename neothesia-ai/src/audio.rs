@@ -2,29 +2,42 @@ use std::path::Path;
 
 use symphonium::{ResampleQuality, SymphoniumLoader};
 
-use crate::{SAMPLE_RATE, SEGMENT_SAMPLES};
-
-pub fn load(path: impl AsRef<Path>) -> anyhow::Result<Vec<f32>> {
+pub fn load(
+    path: impl AsRef<Path>,
+    sample_rate: u32,
+    pad_to_samples: Option<usize>,
+) -> anyhow::Result<Vec<f32>> {
     // A struct used to load audio files.
     let mut loader = SymphoniumLoader::new();
 
-    let mut audio_data_f32 = loader
-        .load_f32(path, Some(SAMPLE_RATE), ResampleQuality::High, None)
-        .unwrap();
+    let audio_data_f32 = loader
+        .load_f32(path, Some(sample_rate), ResampleQuality::High, None)
+        .map_err(|err| anyhow::anyhow!("{err}"))?;
 
-    let left = audio_data_f32.data.remove(0);
-    let right = audio_data_f32.data.remove(0);
+    let mut channels = audio_data_f32.data;
+    let mut mono = match channels.len() {
+        0 => anyhow::bail!("audio file has no channels"),
+        1 => channels.remove(0),
+        channel_count => {
+            let samples_len = channels[0].len();
+            let mut mono = vec![0.0; samples_len];
 
-    let mut mono: Vec<f32> = left
-        .into_iter()
-        .zip(right)
-        .map(|(l, r)| (l + r) / 2.0)
-        .collect();
+            for channel in channels {
+                for (sample, mixed) in channel.into_iter().zip(&mut mono) {
+                    *mixed += sample / channel_count as f32;
+                }
+            }
 
-    let pad_len =
-        (mono.len() as f32 / SEGMENT_SAMPLES as f32).ceil() as usize * SEGMENT_SAMPLES - mono.len();
+            mono
+        }
+    };
 
-    mono.resize(mono.len() + pad_len, 0.0);
+    if let Some(pad_to_samples) = pad_to_samples {
+        let pad_len = (mono.len() as f32 / pad_to_samples as f32).ceil() as usize * pad_to_samples
+            - mono.len();
+
+        mono.resize(mono.len() + pad_len, 0.0);
+    }
 
     Ok(mono)
 }

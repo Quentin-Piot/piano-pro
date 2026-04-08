@@ -1602,6 +1602,7 @@ dependencies = [
  "log",
  "midi-file",
  "midi-io",
+ "neothesia-ai",
  "neothesia-core",
  "neothesia-image",
  "nuon",
@@ -1622,6 +1623,7 @@ name = "neothesia-ai"
 version = "0.1.0"
 dependencies = [
  "anyhow",
+ "log",
  "midly",
  "ndarray",
  "rten",
