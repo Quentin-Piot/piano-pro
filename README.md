@@ -1,5 +1,7 @@
 # PianoPro
 
+**Documentation:** [quentin-piot.github.io/piano-pro](https://quentin-piot.github.io/piano-pro/)
+
 PianoPro is a professional piano learning and MIDI visualization tool, inspired by Guitar Pro but designed specifically for piano.
 
 It extends [Neothesia](https://github.com/PolyMeilex/Neothesia), a great open-source MIDI visualizer written in Rust, with the features that serious learners actually need: sheet music display, auto-transcription, structured practice tools, and more.

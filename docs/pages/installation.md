@@ -2,17 +2,9 @@
 
 ## How to download
 
-### Windows, MacOS, Ubuntu
+Download the latest release from the **Assets** section of the [release page](https://github.com/Quentin-Piot/piano-pro/releases).
 
-Download the latest release from the **Assets** section of the [release page](https://github.com/PolyMeilex/PianoPro/releases)
-
-### Flatpak
-
-<a href="https://flathub.org/apps/details/com.github.polymeilex.neothesia"><img width="240" alt="Download on Flathub" src="https://flathub.org/assets/badges/flathub-badge-en.png"/></a>
-
-### Arch Linux
-
-Arch Linux (**Unofficial AUR** built from source, maintained by @zayn7lie): <https://aur.archlinux.org/packages/pianopro>
+Available for Windows, macOS, and Ubuntu.
 
 ## How to run
 
@@ -27,9 +19,9 @@ Arch Linux (**Unofficial AUR** built from source, maintained by @zayn7lie): <htt
 
 #### How to get working audio out
 
-(on MacOS audio out is included out of the box)
+(on macOS audio out is included out of the box)
 
-- Download [default.sf2](https://github.com/PolyMeilex/PianoPro/blob/master/default.sf2)
+- Download [default.sf2](https://github.com/Quentin-Piot/piano-pro/blob/master/default.sf2)
 - On Windows:
     - Place `default.sf2` in the same dir as executable (to make it a default one)
 - On Linux:

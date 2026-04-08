@@ -2,7 +2,7 @@
 
 ### For Linux and Windows
 
-You can download `pianopro-cli` from [releases](https://github.com/PolyMeilex/PianoPro/releases)
+You can download `pianopro-cli` from [releases](https://github.com/Quentin-Piot/piano-pro/releases)
 
 ### For macOS
 
