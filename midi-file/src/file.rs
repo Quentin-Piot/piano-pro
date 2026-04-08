@@ -26,10 +26,12 @@ impl MidiFile {
             Err(_) => return Err(String::from("Could Not Open File")),
         };
 
-        let smf = match Smf::parse(&data) {
-            Ok(smf) => smf,
-            Err(_) => return Err(String::from("Midi Parsing Error (midly lib)")),
-        };
+        Self::from_bytes(name, &data)
+    }
+
+    pub fn from_bytes(name: impl Into<String>, data: &[u8]) -> Result<Self, String> {
+        let name = name.into();
+        let smf = Smf::parse(data).map_err(|_| String::from("Midi Parsing Error (midly lib)"))?;
 
         let u_per_quarter_note: u16 = match smf.header.timing {
             Timing::Metrical(t) => t.as_int(),

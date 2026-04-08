@@ -1,0 +1,26 @@
+[package]
+name = "neothesia-web"
+version = "0.1.0"
+edition.workspace = true
+
+[dependencies]
+log.workspace = true
+midi-file.workspace = true
+neothesia-core.workspace = true
+nuon.workspace = true
+piano-layout.workspace = true
+wasm-bindgen.workspace = true
+wasm-bindgen-futures.workspace = true
+web-sys = { workspace = true, features = [
+  "console",
+  "Document",
+  "Element",
+  "HtmlCanvasElement",
+  "Window",
+] }
+wgpu = { workspace = true, features = ["webgl"] }
+wgpu-jumpstart.workspace = true
+winit.workspace = true
+
+[[bin]]
+name = "neothesia-web"

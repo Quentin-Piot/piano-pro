@@ -35,6 +35,7 @@ impl Model {
         config.unwrap_or_default()
     }
 
+    #[cfg(not(target_family = "wasm"))]
     fn from_config(config: Config) -> Self {
         let Config {
             playback,
@@ -288,16 +289,24 @@ impl Config {
     }
 
     pub fn save(&self) {
-        let res = ron_options().to_string_pretty(
-            &Model::from_config(self.clone()),
-            ron::ser::PrettyConfig::default(),
-        );
-
-        if let Ok(s) = res
-            && let Some(path) = crate::utils::resources::settings_ron()
+        #[cfg(target_family = "wasm")]
         {
-            std::fs::create_dir_all(path.parent().unwrap()).ok();
-            std::fs::write(path, s).ok();
+            let _ = self;
+        }
+
+        #[cfg(not(target_family = "wasm"))]
+        {
+            let res = ron_options().to_string_pretty(
+                &Model::from_config(self.clone()),
+                ron::ser::PrettyConfig::default(),
+            );
+
+            if let Ok(s) = res
+                && let Some(path) = crate::utils::resources::settings_ron()
+            {
+                std::fs::create_dir_all(path.parent().unwrap()).ok();
+                std::fs::write(path, s).ok();
+            }
         }
     }
 }
