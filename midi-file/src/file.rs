@@ -98,10 +98,7 @@ impl MidiFile {
     }
 }
 
-pub fn extract_midi_metadata(path: &Path) -> Option<String> {
-    let data = fs::read(path).ok()?;
-    let smf = Smf::parse(&data).ok()?;
-
+fn extract_midi_metadata_from_smf(name_hint: &str, smf: &Smf<'_>) -> Option<String> {
     let mut track_name: Option<String> = None;
     let mut text: Option<String> = None;
     let mut instrument_name: Option<String> = None;
@@ -138,8 +135,25 @@ pub fn extract_midi_metadata(path: &Path) -> Option<String> {
         }
     }
 
-    track_name
-        .or(text)
-        .or(instrument_name)
-        .or_else(|| path.file_stem().and_then(|s| s.to_str()).map(String::from))
+    track_name.or(text).or(instrument_name).or_else(|| {
+        Path::new(name_hint)
+            .file_stem()
+            .and_then(|s| s.to_str())
+            .map(String::from)
+    })
+}
+
+pub fn extract_midi_metadata_from_bytes(name_hint: &str, data: &[u8]) -> Option<String> {
+    let smf = Smf::parse(data).ok()?;
+    extract_midi_metadata_from_smf(name_hint, &smf)
+}
+
+pub fn extract_midi_metadata(path: &Path) -> Option<String> {
+    let data = fs::read(path).ok()?;
+    extract_midi_metadata_from_bytes(
+        path.file_name()
+            .and_then(|name| name.to_str())
+            .unwrap_or("untitled.mid"),
+        &data,
+    )
 }
