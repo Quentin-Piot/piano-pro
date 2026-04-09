@@ -13,3 +13,8 @@ build-recorder:
 run-recorder:
 	cargo run --release -p neothesia-cli -- $(file)
 
+build-web:
+	cd neothesia-web && env -u NO_COLOR trunk build --release
+
+serve-web:
+	cd neothesia-web && env -u NO_COLOR trunk serve --open

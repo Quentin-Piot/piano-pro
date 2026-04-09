@@ -85,10 +85,15 @@ impl BgPipeline {
 #[derive(Clone, Copy, Pod, Zeroable)]
 struct TimeUniform {
     time: f32,
+    // WebGL requires uniform buffer bindings to be a multiple of 16 bytes
+    _padding: [f32; 3],
 }
 impl Default for TimeUniform {
     fn default() -> Self {
         // Lets move start of the animation a bit
-        Self { time: 10.0 }
+        Self {
+            time: 10.0,
+            _padding: [0.0; 3],
+        }
     }
 }

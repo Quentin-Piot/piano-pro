@@ -196,4 +196,13 @@ impl KeyboardRenderer {
             text.queue_mut().extend_from_slice(&self.text_cache);
         }
     }
+
+    #[profiling::function]
+    pub fn update_quads_only(&mut self, quads: &mut QuadRenderer) {
+        if self.cache.is_empty() {
+            self.rebuild_quad_cache();
+        }
+
+        quads.layer().extend(&self.cache);
+    }
 }

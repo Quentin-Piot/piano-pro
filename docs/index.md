@@ -11,6 +11,10 @@ hero:
     alt: PianoPro Logo
   actions:
     - theme: brand
+      text: Launch Web App
+      link: /app/
+      target: _self
+    - theme: brand
       text: Download
       link: /pages/installation
     - theme: alt

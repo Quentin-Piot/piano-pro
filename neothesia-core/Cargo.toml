@@ -10,6 +10,7 @@ unexpected_cfgs = { level = "warn", check-cfg = ['cfg(feature, values("cargo-cli
 
 [dependencies]
 serde = { workspace = true, features = ["serde_derive"] }
+serde_json.workspace = true
 neothesia-image.workspace = true
 bytes.workspace = true
 ron.workspace = true
@@ -20,6 +21,7 @@ glyphon.workspace = true
 wgpu-jumpstart.workspace = true
 piano-layout.workspace = true
 midi-file.workspace = true
+web-time.workspace = true
 profiling.workspace = true
 euclid.workspace = true
 dpi.workspace = true
@@ -27,3 +29,6 @@ dpi.workspace = true
 [target.'cfg(target_os = "macos")'.dependencies]
 # TODO: Port to `objc2`
 objc.workspace = true
+
+[target.'cfg(target_family = "wasm")'.dependencies]
+web-sys = { workspace = true, features = ["Storage", "Window"] }

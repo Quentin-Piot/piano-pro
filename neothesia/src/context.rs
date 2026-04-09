@@ -27,7 +27,7 @@ pub struct Context {
     pub proxy: EventLoopProxy<NeothesiaEvent>,
 
     /// Last frame timestamp
-    pub frame_timestamp: std::time::Instant,
+    pub frame_timestamp: web_time::Instant,
 
     #[cfg(debug_assertions)]
     pub fps_ticker: neothesia_core::utils::fps_ticker::Fps,
@@ -70,7 +70,7 @@ impl Context {
             input_manager: InputManager::new(proxy.clone()),
             config,
             proxy,
-            frame_timestamp: std::time::Instant::now(),
+            frame_timestamp: web_time::Instant::now(),
 
             #[cfg(debug_assertions)]
             fps_ticker: Default::default(),

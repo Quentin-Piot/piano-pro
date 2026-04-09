@@ -7,10 +7,15 @@ export default defineConfig({
   themeConfig: {
     nav: [
       { text: "Home", link: "/" },
+      { text: "Web App", link: "/pages/web-app" },
       { text: "How-to", link: "/pages/installation" },
     ],
 
     sidebar: [
+      {
+        text: "Web",
+        items: [{ text: "Web App", link: "/pages/web-app" }],
+      },
       {
         text: "How-to",
         items: [

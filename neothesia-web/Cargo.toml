@@ -1,0 +1,42 @@
+[package]
+name = "neothesia-web"
+version = "0.1.0"
+edition.workspace = true
+
+[dependencies]
+log.workspace = true
+midi-file.workspace = true
+neothesia = { path = "../neothesia", default-features = false }
+neothesia-core.workspace = true
+nuon.workspace = true
+piano-layout.workspace = true
+rfd.workspace = true
+serde.workspace = true
+serde_json.workspace = true
+wasm-bindgen.workspace = true
+wasm-bindgen-futures.workspace = true
+oxisynth.workspace = true
+web-sys = { workspace = true, features = [
+  "AudioBuffer",
+  "AudioBufferSourceNode",
+  "AudioContext",
+  "AudioDestinationNode",
+  "AudioNode",
+  "AudioParam",
+  "console",
+  "Document",
+  "Element",
+  "GainNode",
+  "HtmlCanvasElement",
+  "HtmlElement",
+  "Performance",
+  "Storage",
+  "Window",
+] }
+wgpu = { workspace = true, features = ["webgl"] }
+web-time.workspace = true
+wgpu-jumpstart.workspace = true
+winit.workspace = true
+
+[[bin]]
+name = "neothesia-web"

@@ -1,7 +1,7 @@
-use std::{
-    env,
-    path::{Path, PathBuf},
-};
+use std::path::PathBuf;
+
+#[cfg(not(target_arch = "wasm32"))]
+use std::{env, path::Path};
 
 #[cfg(all(target_family = "unix", not(target_os = "macos")))]
 fn home() -> Option<PathBuf> {
@@ -19,15 +19,18 @@ fn xdg_config() -> Option<PathBuf> {
         .or_else(|| home().map(|h| h.join(".config").join("neothesia")))
 }
 
+#[cfg(not(target_arch = "wasm32"))]
 fn file_name(name: &str, extension: &str) -> String {
     format!("{name}.{extension}")
 }
 
+#[cfg(not(target_arch = "wasm32"))]
 fn existing_resource_path(base: &Path, file_name: &str) -> Option<PathBuf> {
     let path = base.join(file_name);
     path.exists().then_some(path)
 }
 
+#[cfg(not(target_arch = "wasm32"))]
 fn dev_resource_path(name: &str, extension: &str) -> Option<PathBuf> {
     let file_name = file_name(name, extension);
 
@@ -49,6 +52,9 @@ fn dev_resource_path(name: &str, extension: &str) -> Option<PathBuf> {
 }
 
 pub fn default_sf2() -> Option<PathBuf> {
+    #[cfg(target_arch = "wasm32")]
+    return None;
+
     #[cfg(all(target_family = "unix", not(target_os = "macos")))]
     {
         if let Some(path) = xdg_config().map(|p| p.join("default.sf2"))
@@ -92,6 +98,9 @@ pub fn default_sf2() -> Option<PathBuf> {
 }
 
 pub fn settings_ron() -> Option<PathBuf> {
+    #[cfg(target_arch = "wasm32")]
+    return None;
+
     #[cfg(all(target_family = "unix", not(target_os = "macos")))]
     return xdg_config().map(|p| p.join("settings.ron"));
 
@@ -99,10 +108,15 @@ pub fn settings_ron() -> Option<PathBuf> {
     return Some(PathBuf::from("./settings.ron"));
 
     #[cfg(target_os = "macos")]
-    return bundled_resource_path("settings", "ron").map(PathBuf::from);
+    return bundled_resource_path("settings", "ron")
+        .map(PathBuf::from)
+        .or_else(|| macos_config_fallback().map(|p| p.join("settings.ron")));
 }
 
 pub fn midi_library_dir() -> Option<PathBuf> {
+    #[cfg(target_arch = "wasm32")]
+    return None;
+
     #[cfg(all(target_family = "unix", not(target_os = "macos")))]
     return xdg_config().map(|p| p.join("midi"));
 
@@ -110,7 +124,16 @@ pub fn midi_library_dir() -> Option<PathBuf> {
     return Some(PathBuf::from("./midi"));
 
     #[cfg(target_os = "macos")]
-    return bundled_resource_path("midi", "").map(PathBuf::from);
+    return bundled_resource_path("midi", "")
+        .map(PathBuf::from)
+        .or_else(|| macos_config_fallback().map(|p| p.join("midi")));
+}
+
+#[cfg(target_os = "macos")]
+fn macos_config_fallback() -> Option<PathBuf> {
+    env::var_os("HOME")
+        .map(PathBuf::from)
+        .map(|h| h.join(".config").join("neothesia"))
 }
 
 #[cfg(target_os = "macos")]

@@ -13,34 +13,46 @@ synth = []
 fluid-synth = ["synth", "cpal", "fluidlite", "oxisynth"]
 oxi-synth = ["synth", "cpal", "oxisynth"]
 
+[lib]
+name = "neothesia"
+
 [dependencies]
-pollster.workspace = true
 log.workspace = true
-env_logger.workspace = true
 wgpu.workspace = true
 wgpu-jumpstart.workspace = true
 neothesia-core.workspace = true
-neothesia-ai.workspace = true
 neothesia-image.workspace = true
 midi-file.workspace = true
 midi-io.workspace = true
 nuon.workspace = true
 futures-channel.workspace = true
 cosmic-text.workspace = true
+web-time.workspace = true
 
 bytes.workspace = true
 lilt.workspace = true
 winit.workspace = true
 rfd.workspace = true
+piano-layout.workspace = true
 
-cpal = { workspace = true, optional = true }
-fluidlite = { workspace = true, optional = true }
 oxisynth = { workspace = true, optional = true }
+wasm-bindgen-futures = { workspace = true }
+serde_json.workspace = true
 
 profiling.workspace = true
 puffin.workspace = true
+
+# Desktop-only dependencies
+[target.'cfg(not(target_arch = "wasm32"))'.dependencies]
+pollster.workspace = true
+env_logger.workspace = true
+neothesia-ai.workspace = true
 puffin_http.workspace = true
-piano-layout.workspace = true
+cpal = { workspace = true, optional = true }
+fluidlite = { workspace = true, optional = true }
+
+[target.'cfg(target_arch = "wasm32")'.dependencies]
+web-sys = { workspace = true, features = ["Storage", "Window"] }
 
 [[bin]]
 name = "neothesia"

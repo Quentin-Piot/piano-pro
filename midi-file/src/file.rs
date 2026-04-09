@@ -26,10 +26,12 @@ impl MidiFile {
             Err(_) => return Err(String::from("Could Not Open File")),
         };
 
-        let smf = match Smf::parse(&data) {
-            Ok(smf) => smf,
-            Err(_) => return Err(String::from("Midi Parsing Error (midly lib)")),
-        };
+        Self::from_bytes(name, &data)
+    }
+
+    pub fn from_bytes(name: impl Into<String>, data: &[u8]) -> Result<Self, String> {
+        let name = name.into();
+        let smf = Smf::parse(data).map_err(|_| String::from("Midi Parsing Error (midly lib)"))?;
 
         let u_per_quarter_note: u16 = match smf.header.timing {
             Timing::Metrical(t) => t.as_int(),
@@ -96,10 +98,7 @@ impl MidiFile {
     }
 }
 
-pub fn extract_midi_metadata(path: &Path) -> Option<String> {
-    let data = fs::read(path).ok()?;
-    let smf = Smf::parse(&data).ok()?;
-
+fn extract_midi_metadata_from_smf(name_hint: &str, smf: &Smf<'_>) -> Option<String> {
     let mut track_name: Option<String> = None;
     let mut text: Option<String> = None;
     let mut instrument_name: Option<String> = None;
@@ -136,8 +135,25 @@ pub fn extract_midi_metadata(path: &Path) -> Option<String> {
         }
     }
 
-    track_name
-        .or(text)
-        .or(instrument_name)
-        .or_else(|| path.file_stem().and_then(|s| s.to_str()).map(String::from))
+    track_name.or(text).or(instrument_name).or_else(|| {
+        Path::new(name_hint)
+            .file_stem()
+            .and_then(|s| s.to_str())
+            .map(String::from)
+    })
+}
+
+pub fn extract_midi_metadata_from_bytes(name_hint: &str, data: &[u8]) -> Option<String> {
+    let smf = Smf::parse(data).ok()?;
+    extract_midi_metadata_from_smf(name_hint, &smf)
+}
+
+pub fn extract_midi_metadata(path: &Path) -> Option<String> {
+    let data = fs::read(path).ok()?;
+    extract_midi_metadata_from_bytes(
+        path.file_name()
+            .and_then(|name| name.to_str())
+            .unwrap_or("untitled.mid"),
+        &data,
+    )
 }

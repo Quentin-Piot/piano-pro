@@ -4,6 +4,8 @@
 
 # PianoPro
 
+**Open the web app:** [quentin-piot.github.io/piano-pro/app](https://quentin-piot.github.io/piano-pro/app/)
+
 **Documentation:** [quentin-piot.github.io/piano-pro](https://quentin-piot.github.io/piano-pro/)
 
 PianoPro is a professional piano learning and MIDI visualization tool, inspired by Guitar Pro but designed specifically for piano.
@@ -44,6 +46,20 @@ Neothesia is GPU-accelerated, fast, and clean. This fork keeps all of that and b
 - Countdown before playback starts
 - Play-along mode with required key detection
 - Light-mode UI designed for extended practice sessions
+
+## Web Version
+
+PianoPro also runs directly in the browser:
+
+- **Web app:** [quentin-piot.github.io/piano-pro/app](https://quentin-piot.github.io/piano-pro/app/)
+- Uses the same core scenes and playback flow as the desktop app
+- Includes MIDI import, playback, browser-persisted library, and built-in audio output
+
+Current web limitations:
+
+- Audio-to-MIDI import is desktop-only
+- Custom SoundFont selection is desktop-only
+- The browser build is currently best suited to recent desktop browsers
 
 ## Roadmap
 

@@ -1,5 +1,4 @@
 use std::path::PathBuf;
-use std::time::{SystemTime, UNIX_EPOCH};
 
 use serde::{Deserialize, Serialize};
 
@@ -297,15 +296,17 @@ fn default_output() -> Option<String> {
     Some("Buildin Synth".into())
 }
 
+fn unix_timestamp_secs() -> u64 {
+    web_time::SystemTime::now()
+        .duration_since(web_time::UNIX_EPOCH)
+        .map(|d| d.as_secs())
+        .unwrap_or(0)
+}
+
 impl MidiEntryV1 {
     pub fn new(display_name: String, stem: String) -> Self {
-        let timestamp = SystemTime::now()
-            .duration_since(UNIX_EPOCH)
-            .map(|d| d.as_secs())
-            .unwrap_or(0);
-
+        let timestamp = unix_timestamp_secs();
         let stored_name = format!("{}_{}.mid", timestamp, stem);
-
         Self {
             stored_name,
             display_name,
@@ -314,15 +315,10 @@ impl MidiEntryV1 {
     }
 
     pub fn with_stored_name(display_name: String, stored_name: String) -> Self {
-        let timestamp = SystemTime::now()
-            .duration_since(UNIX_EPOCH)
-            .map(|d| d.as_secs())
-            .unwrap_or(0);
-
         Self {
             stored_name,
             display_name,
-            added_at: timestamp,
+            added_at: unix_timestamp_secs(),
         }
     }
 }

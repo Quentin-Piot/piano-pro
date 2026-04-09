@@ -1,6 +1,7 @@
 #[derive(Clone, Copy, Default)]
 enum NeoBtnVariant {
     Primary,
+    #[cfg(not(target_arch = "wasm32"))]
     Danger,
     #[default]
     Secondary,
@@ -42,6 +43,7 @@ impl NeoBtnVariant {
                 meta_fill: nuon::Color::new_u8(243, 247, 255, 1.0),
                 meta_text: nuon::theme::PRIMARY,
             },
+            #[cfg(not(target_arch = "wasm32"))]
             NeoBtnVariant::Danger => NeoBtnPalette {
                 border: nuon::Color::new_u8(236, 209, 215, 1.0),
                 fill: nuon::theme::DANGER_SOFT,
@@ -79,6 +81,7 @@ pub struct NeoBtn {
     icon: String,
     variant: NeoBtnVariant,
     alignment: NeoBtnAlignment,
+    disabled: bool,
 }
 
 impl NeoBtn {
@@ -92,6 +95,7 @@ impl NeoBtn {
             icon: Default::default(),
             variant: Default::default(),
             alignment: Default::default(),
+            disabled: false,
         }
     }
 
@@ -111,7 +115,6 @@ impl NeoBtn {
         self
     }
 
-    #[allow(dead_code)]
     pub fn subtitle(mut self, subtitle: impl Into<String>) -> Self {
         self.subtitle = subtitle.into();
         self
@@ -132,6 +135,7 @@ impl NeoBtn {
         self
     }
 
+    #[cfg(not(target_arch = "wasm32"))]
     pub fn danger(mut self) -> Self {
         self.variant = NeoBtnVariant::Danger;
         self
@@ -139,6 +143,11 @@ impl NeoBtn {
 
     pub fn centered(mut self) -> Self {
         self.alignment = NeoBtnAlignment::Centered;
+        self
+    }
+
+    pub fn disabled(mut self, disabled: bool) -> Self {
+        self.disabled = disabled;
         self
     }
 
@@ -165,17 +174,36 @@ impl NeoBtn {
         };
 
         let event = nuon::click_area(id).size(w, h).build(ui);
-        let hovered = event.is_hovered() || event.is_pressed();
+        let hovered = !self.disabled && (event.is_hovered() || event.is_pressed());
 
-        let fill = if hovered {
-            palette.fill_hover
+        let (fill, chip, palette) = if self.disabled {
+            let gray = nuon::Color::new_u8(230, 232, 235, 1.0);
+            let gray_text = nuon::Color::new_u8(170, 174, 180, 1.0);
+            let disabled_palette = NeoBtnPalette {
+                border: nuon::Color::new_u8(218, 220, 224, 1.0),
+                fill: gray,
+                fill_hover: gray,
+                chip: nuon::Color::new_u8(210, 213, 217, 1.0),
+                chip_hover: nuon::Color::new_u8(210, 213, 217, 1.0),
+                icon: gray_text,
+                title: gray_text,
+                subtitle: nuon::Color::new_u8(190, 193, 198, 1.0),
+                meta_fill: nuon::Color::new_u8(218, 220, 224, 1.0),
+                meta_text: gray_text,
+            };
+            (gray, disabled_palette.chip, disabled_palette)
         } else {
-            palette.fill
-        };
-        let chip = if hovered {
-            palette.chip_hover
-        } else {
-            palette.chip
+            let fill = if hovered {
+                palette.fill_hover
+            } else {
+                palette.fill
+            };
+            let chip = if hovered {
+                palette.chip_hover
+            } else {
+                palette.chip
+            };
+            (fill, chip, palette)
         };
 
         nuon::quad()
@@ -207,7 +235,7 @@ impl NeoBtn {
                 .icon(&self.icon)
                 .build(ui);
 
-            return event.is_clicked();
+            return event.is_clicked() && !self.disabled;
         }
 
         let pad_x = if compact { 16.0 } else { 18.0 };
@@ -324,7 +352,7 @@ impl NeoBtn {
                 .build(ui);
         }
 
-        event.is_clicked()
+        event.is_clicked() && !self.disabled
     }
 }
 

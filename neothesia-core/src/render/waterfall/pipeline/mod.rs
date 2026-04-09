@@ -121,6 +121,7 @@ impl WaterfallPipeline {
 struct TimeUniform {
     time: f32,
     speed: f32,
+    _padding: [f32; 2],
 }
 
 impl Default for TimeUniform {
@@ -128,6 +129,7 @@ impl Default for TimeUniform {
         Self {
             time: 0.0,
             speed: 400.0,
+            _padding: [0.0; 2],
         }
     }
 }

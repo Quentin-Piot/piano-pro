@@ -1,23 +1,14 @@
 #![allow(clippy::collapsible_match, clippy::single_match)]
 
-mod context;
-mod icons;
-mod input_manager;
-mod output_manager;
-mod scene;
-mod song;
-mod utils;
-
 use std::{sync::Arc, time::Duration};
 
-use context::Context;
-use scene::{Scene, menu_scene, playing_scene};
-use song::Song;
-use utils::window::WindowState;
+use neothesia::{
+    Context, NeothesiaEvent, Scene, Song,
+    scene::{menu_scene, playing_scene},
+    utils::window::WindowState,
+};
 
-use midi_file::midly::MidiMessage;
-use neothesia_core::{config, render};
-use wgpu_jumpstart::{Gpu, Surface, TransformUniform};
+use wgpu_jumpstart::{Gpu, Surface};
 use winit::{
     application::ApplicationHandler,
     event::{ElementState, MouseButton, TouchPhase, WindowEvent},
@@ -25,28 +16,12 @@ use winit::{
     keyboard::NamedKey,
 };
 
-use crate::utils::window::WinitEvent;
-
-#[derive(Debug)]
-pub enum NeothesiaEvent {
-    /// Go to playing scene
-    Play(song::Song),
-    FreePlay(Option<song::Song>),
-    /// Go to main menu scene
-    MainMenu(Option<song::Song>),
-    MidiInput {
-        /// The MIDI channel that this message is associated with.
-        channel: u8,
-        /// The MIDI message type and associated data.
-        message: MidiMessage,
-    },
-    Exit,
-}
+use neothesia::utils::window::WinitEvent;
 
 struct Neothesia {
     context: Context,
     game_scene: Box<dyn Scene>,
-    // We are dropping surface last, because of some wgpu internal ref-counting errors that cause libwayland crasch
+    // We are dropping surface last, because of some wgpu internal ref-counting errors that cause libwayland crash
     surface: Surface,
 }
 
@@ -113,7 +88,7 @@ impl Neothesia {
             }
             WindowEvent::RedrawRequested => {
                 let delta = self.context.frame_timestamp.elapsed();
-                self.context.frame_timestamp = std::time::Instant::now();
+                self.context.frame_timestamp = web_time::Instant::now();
 
                 self.update(delta);
                 self.render();
@@ -141,7 +116,7 @@ impl Neothesia {
                 self.game_scene = Box::new(to);
             }
             NeothesiaEvent::FreePlay(song) => {
-                let to = scene::freeplay::FreeplayScene::new(&mut self.context, song);
+                let to = neothesia::scene::freeplay::FreeplayScene::new(&mut self.context, song);
                 self.game_scene = Box::new(to);
             }
             NeothesiaEvent::MainMenu(song) => {
@@ -223,7 +198,6 @@ impl Neothesia {
     }
 }
 
-// This is so stupid, but winit holds us at gunpoint with create_window deprecation
 struct NeothesiaBootstrap(Option<Neothesia>, EventLoopProxy<NeothesiaEvent>);
 
 impl ApplicationHandler<NeothesiaEvent> for NeothesiaBootstrap {
@@ -310,11 +284,8 @@ impl ApplicationHandler<NeothesiaEvent> for NeothesiaBootstrap {
 
         // Touch event to mouse event translation (temporary until we get touch support)
         if let WindowEvent::Touch(touch) = &event {
-            // TODO: What to do with touch.id? We somehow want to ignore multitouch
-
             match touch.phase {
                 TouchPhase::Started => {
-                    // Touch might happen anywhere on the screen, so send moved event
                     on_event(WindowEvent::CursorMoved {
                         device_id: touch.device_id,
                         position: touch.location,
@@ -357,7 +328,8 @@ fn main() {
     )
     .init();
 
-    puffin::set_scopes_on(true); // tell puffin to collect data
+    puffin::set_scopes_on(true);
+    #[cfg(debug_assertions)]
     let _server = puffin_http::Server::new("127.0.0.1:8585").ok();
 
     let event_loop: EventLoop<NeothesiaEvent> = EventLoop::with_user_event().build().unwrap();

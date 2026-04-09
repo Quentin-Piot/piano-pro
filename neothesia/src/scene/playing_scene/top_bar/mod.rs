@@ -1,5 +1,6 @@
 use std::hash::Hash;
-use std::time::{Duration, Instant};
+use std::time::Duration;
+use web_time::Instant;
 
 use crate::{NeothesiaEvent, context::Context, icons, song::PlayerConfig};
 

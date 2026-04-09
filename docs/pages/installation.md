@@ -1,5 +1,21 @@
 # Installation
 
+## Web app
+
+Use PianoPro directly in the browser:
+
+[Open PianoPro Web](/app/){target="_self"}
+
+The web version is the fastest way to try PianoPro. It includes MIDI import, playback, browser-persisted library, and built-in audio output.
+
+Current web limitations:
+
+- Audio-to-MIDI conversion is desktop-only
+- Custom SoundFont selection is desktop-only
+- Best experience is on a recent desktop browser
+
+## Desktop app
+
 ## How to download
 
 Download the latest release from the **Assets** section of the [release page](https://github.com/Quentin-Piot/piano-pro/releases).

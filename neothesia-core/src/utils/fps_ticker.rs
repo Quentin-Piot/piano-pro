@@ -1,10 +1,8 @@
 // The MIT License (MIT)
 // Copyright (c) 2020 mitchmindtree
 
-use std::{
-    collections::VecDeque,
-    time::{Duration, Instant},
-};
+use std::{collections::VecDeque, time::Duration};
+use web_time::Instant;
 
 /// Simple type for tracking frames-per-second.
 #[derive(Clone, Debug)]
