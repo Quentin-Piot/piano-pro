@@ -119,6 +119,8 @@ pub struct OutputManager {
     synth_backend: Option<SynthBackend>,
     #[cfg(not(target_arch = "wasm32"))]
     midi_backend: Option<MidiBackend>,
+    #[cfg(target_arch = "wasm32")]
+    web_sender: Option<WebOutputSender>,
 
     output_connection: (OutputDescriptor, OutputConnection),
 }
@@ -154,6 +156,8 @@ impl OutputManager {
             synth_backend,
             #[cfg(not(target_arch = "wasm32"))]
             midi_backend,
+            #[cfg(target_arch = "wasm32")]
+            web_sender: None,
 
             output_connection: (OutputDescriptor::DummyOutput, OutputConnection::DummyOutput),
         }
@@ -162,6 +166,7 @@ impl OutputManager {
     /// Connect a web audio sender (WASM only).
     #[cfg(target_arch = "wasm32")]
     pub fn connect_web(&mut self, sender: WebOutputSender) {
+        self.web_sender = Some(sender.clone());
         self.output_connection = (OutputDescriptor::WebOutput, OutputConnection::Web(sender));
     }
 
@@ -224,7 +229,9 @@ impl OutputManager {
                 }
                 #[cfg(target_arch = "wasm32")]
                 OutputDescriptor::WebOutput => {
-                    // Web output is set via connect_web(); ignore if called from scene
+                    if let Some(sender) = self.web_sender.clone() {
+                        self.output_connection = (desc, OutputConnection::Web(sender));
+                    }
                 }
                 OutputDescriptor::DummyOutput => {
                     self.output_connection = (desc, OutputConnection::DummyOutput);

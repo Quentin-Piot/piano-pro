@@ -9,12 +9,31 @@ use model::{
 };
 pub use model::{ColorSchemaV1, MidiEntryV1};
 
+#[cfg(target_family = "wasm")]
+const WASM_CONFIG_STORAGE_KEY: &str = "pianopro.config.v1";
+
+#[cfg(not(target_family = "wasm"))]
 fn ron_options() -> ron::Options {
     ron::Options::default()
         .with_default_extension(ron::extensions::Extensions::UNWRAP_VARIANT_NEWTYPES)
 }
 
 impl Model {
+    #[cfg(target_family = "wasm")]
+    fn load() -> Self {
+        if let Some(storage) = wasm_storage()
+            && let Ok(Some(raw)) = storage.get_item(WASM_CONFIG_STORAGE_KEY)
+        {
+            match serde_json::from_str(&raw) {
+                Ok(config) => return config,
+                Err(err) => log::error!("Failed to parse web config: {err}"),
+            }
+        }
+
+        Self::default()
+    }
+
+    #[cfg(not(target_family = "wasm"))]
     fn load() -> Self {
         let config: Option<Self> = if let Some(path) = crate::utils::resources::settings_ron() {
             if let Ok(file) = std::fs::read_to_string(path) {
@@ -35,7 +54,6 @@ impl Model {
         config.unwrap_or_default()
     }
 
-    #[cfg(not(target_family = "wasm"))]
     fn from_config(config: Config) -> Self {
         let Config {
             playback,
@@ -291,7 +309,19 @@ impl Config {
     pub fn save(&self) {
         #[cfg(target_family = "wasm")]
         {
-            let _ = self;
+            let serialized = match serde_json::to_string(&Model::from_config(self.clone())) {
+                Ok(serialized) => serialized,
+                Err(err) => {
+                    log::error!("Failed to serialize web config: {err}");
+                    return;
+                }
+            };
+
+            if let Some(storage) = wasm_storage()
+                && let Err(err) = storage.set_item(WASM_CONFIG_STORAGE_KEY, &serialized)
+            {
+                log::error!("Failed to persist web config: {err:?}");
+            }
         }
 
         #[cfg(not(target_family = "wasm"))]
@@ -309,4 +339,9 @@ impl Config {
             }
         }
     }
+}
+
+#[cfg(target_family = "wasm")]
+fn wasm_storage() -> Option<web_sys::Storage> {
+    web_sys::window().and_then(|window| window.local_storage().ok().flatten())
 }

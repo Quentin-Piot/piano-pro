@@ -37,6 +37,7 @@ piano-layout.workspace = true
 
 oxisynth = { workspace = true, optional = true }
 wasm-bindgen-futures = { workspace = true }
+serde_json.workspace = true
 
 profiling.workspace = true
 puffin.workspace = true
@@ -49,6 +50,9 @@ neothesia-ai.workspace = true
 puffin_http.workspace = true
 cpal = { workspace = true, optional = true }
 fluidlite = { workspace = true, optional = true }
+
+[target.'cfg(target_arch = "wasm32")'.dependencies]
+web-sys = { workspace = true, features = ["Storage", "Window"] }
 
 [[bin]]
 name = "neothesia"

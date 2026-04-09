@@ -10,9 +10,12 @@ use super::{UiState, state::Page};
 use neothesia_core::config::MidiEntryV1;
 
 #[cfg(target_arch = "wasm32")]
-use std::collections::HashMap;
-#[cfg(target_arch = "wasm32")]
 use std::cell::RefCell;
+#[cfg(target_arch = "wasm32")]
+use std::collections::HashMap;
+
+#[cfg(target_arch = "wasm32")]
+const WEB_MIDI_STORAGE_PREFIX: &str = "pianopro.midi.";
 
 #[cfg(target_arch = "wasm32")]
 thread_local! {
@@ -25,13 +28,85 @@ thread_local! {
 #[cfg(target_arch = "wasm32")]
 fn store_midi(stored_name: &str, bytes: Vec<u8>) {
     WEB_MIDI_STORE.with(|store| {
-        store.borrow_mut().insert(stored_name.to_string(), bytes);
+        store
+            .borrow_mut()
+            .insert(stored_name.to_string(), bytes.clone());
     });
+
+    persist_midi(stored_name, &bytes);
 }
 
 #[cfg(target_arch = "wasm32")]
 fn load_midi(stored_name: &str) -> Option<Vec<u8>> {
-    WEB_MIDI_STORE.with(|store| store.borrow().get(stored_name).cloned())
+    let cached = WEB_MIDI_STORE.with(|store| store.borrow().get(stored_name).cloned());
+    if cached.is_some() {
+        return cached;
+    }
+
+    let bytes = load_persisted_midi(stored_name)?;
+    WEB_MIDI_STORE.with(|store| {
+        store
+            .borrow_mut()
+            .insert(stored_name.to_string(), bytes.clone());
+    });
+    Some(bytes)
+}
+
+#[cfg(target_arch = "wasm32")]
+pub fn remove_web_midi(stored_name: &str) {
+    WEB_MIDI_STORE.with(|store| {
+        store.borrow_mut().remove(stored_name);
+    });
+
+    if let Some(storage) = local_storage() {
+        let _ = storage.remove_item(&midi_storage_key(stored_name));
+    }
+}
+
+#[cfg(target_arch = "wasm32")]
+fn persist_midi(stored_name: &str, bytes: &[u8]) {
+    let Some(storage) = local_storage() else {
+        return;
+    };
+
+    let serialized = match serde_json::to_string(bytes) {
+        Ok(serialized) => serialized,
+        Err(err) => {
+            log::error!("Failed to serialize web MIDI bytes: {err}");
+            return;
+        }
+    };
+
+    if let Err(err) = storage.set_item(&midi_storage_key(stored_name), &serialized) {
+        log::error!("Failed to persist web MIDI bytes for {stored_name}: {err:?}");
+    }
+}
+
+#[cfg(target_arch = "wasm32")]
+fn load_persisted_midi(stored_name: &str) -> Option<Vec<u8>> {
+    let storage = local_storage()?;
+    let raw = storage
+        .get_item(&midi_storage_key(stored_name))
+        .ok()
+        .flatten()?;
+
+    match serde_json::from_str(&raw) {
+        Ok(bytes) => Some(bytes),
+        Err(err) => {
+            log::error!("Failed to parse persisted web MIDI bytes for {stored_name}: {err}");
+            None
+        }
+    }
+}
+
+#[cfg(target_arch = "wasm32")]
+fn midi_storage_key(stored_name: &str) -> String {
+    format!("{WEB_MIDI_STORAGE_PREFIX}{stored_name}")
+}
+
+#[cfg(target_arch = "wasm32")]
+fn local_storage() -> Option<web_sys::Storage> {
+    web_sys::window().and_then(|window| window.local_storage().ok().flatten())
 }
 
 /// Future that polls the WEB_IMPORT_RESULT thread-local each frame.
@@ -233,4 +308,3 @@ async fn open_midi_file_picker_fut() -> Option<PendingImport> {
 
     Some(PendingImport { stored_path, entry })
 }
-

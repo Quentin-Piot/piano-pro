@@ -23,7 +23,9 @@ use winit::{
     keyboard::{Key, NamedKey},
 };
 
-use crate::{NeothesiaEvent, context::Context, icons, scene::Scene, song::Song};
+#[cfg(not(target_arch = "wasm32"))]
+use crate::NeothesiaEvent;
+use crate::{context::Context, icons, scene::Scene, song::Song};
 
 use std::task::Waker;
 
@@ -114,7 +116,9 @@ fn cancel_pending_import(state: &mut UiState) {
 
 #[cfg(target_arch = "wasm32")]
 fn cancel_pending_import(state: &mut UiState) {
-    state.pending_import = None;
+    if let Some(pending) = state.pending_import.take() {
+        self::midi_picker::remove_web_midi(&pending.entry.stored_name);
+    }
 }
 
 impl MenuScene {
@@ -509,17 +513,20 @@ impl MenuScene {
                             self.state.go_to(Page::Settings);
                         }
 
-                        nuon::translate().y(action_h + 12.0).add_to_current(ui);
-
-                        if neo_btn()
-                            .size(right_w, action_h)
-                            .label("Exit")
-                            .icon(icons::exit_icon())
-                            .meta("ESC")
-                            .danger()
-                            .build(ui)
+                        #[cfg(not(target_arch = "wasm32"))]
                         {
-                            ctx.proxy.send_event(NeothesiaEvent::Exit).ok();
+                            nuon::translate().y(action_h + 12.0).add_to_current(ui);
+
+                            if neo_btn()
+                                .size(right_w, action_h)
+                                .label("Exit")
+                                .icon(icons::exit_icon())
+                                .meta("ESC")
+                                .danger()
+                                .build(ui)
+                            {
+                                ctx.proxy.send_event(NeothesiaEvent::Exit).ok();
+                            }
                         }
                     });
             });
@@ -1088,6 +1095,7 @@ impl Scene for MenuScene {
                     self.state.go_to(Page::Library);
                 }
 
+                #[cfg(not(target_arch = "wasm32"))]
                 if event.key_pressed(Key::Named(NamedKey::Escape)) {
                     ctx.proxy.send_event(NeothesiaEvent::Exit).ok();
                 }

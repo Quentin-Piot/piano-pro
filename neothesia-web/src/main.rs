@@ -94,7 +94,32 @@ mod wasm {
                         key: key.as_int(),
                     }
                 }
-                _ => return,
+                MidiMessage::Aftertouch { key, vel } => {
+                    oxisynth::MidiEvent::PolyphonicKeyPressure {
+                        channel,
+                        key: key.as_int(),
+                        value: vel.as_int(),
+                    }
+                }
+                MidiMessage::Controller { controller, value } => {
+                    oxisynth::MidiEvent::ControlChange {
+                        channel,
+                        ctrl: controller.as_int(),
+                        value: value.as_int(),
+                    }
+                }
+                MidiMessage::ProgramChange { program } => oxisynth::MidiEvent::ProgramChange {
+                    channel,
+                    program_id: program.as_int(),
+                },
+                MidiMessage::ChannelAftertouch { vel } => oxisynth::MidiEvent::ChannelPressure {
+                    channel,
+                    value: vel.as_int(),
+                },
+                MidiMessage::PitchBend { bend } => oxisynth::MidiEvent::PitchBend {
+                    channel,
+                    value: bend.0.as_int(),
+                },
             };
             self.synth.send_event(event).ok();
         }
@@ -261,9 +286,8 @@ mod wasm {
                 .texture
                 .create_view(&wgpu::TextureViewDescriptor::default());
 
-            let bg_color =
-                wgpu_jumpstart::Color::from(self.context.config.background_color())
-                    .into_linear_wgpu_color();
+            let bg_color = wgpu_jumpstart::Color::from(self.context.config.background_color())
+                .into_linear_wgpu_color();
 
             {
                 let rpass =
@@ -512,8 +536,7 @@ mod wasm {
             .dyn_into::<web_sys::HtmlCanvasElement>()
             .expect("pianopro canvas should be a canvas element");
 
-        let event_loop: EventLoop<NeothesiaEvent> =
-            EventLoop::with_user_event().build().unwrap();
+        let event_loop: EventLoop<NeothesiaEvent> = EventLoop::with_user_event().build().unwrap();
         let proxy = event_loop.create_proxy();
 
         let bootstrap = WebBootstrap {

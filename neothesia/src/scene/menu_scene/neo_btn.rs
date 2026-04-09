@@ -1,6 +1,7 @@
 #[derive(Clone, Copy, Default)]
 enum NeoBtnVariant {
     Primary,
+    #[cfg(not(target_arch = "wasm32"))]
     Danger,
     #[default]
     Secondary,
@@ -42,6 +43,7 @@ impl NeoBtnVariant {
                 meta_fill: nuon::Color::new_u8(243, 247, 255, 1.0),
                 meta_text: nuon::theme::PRIMARY,
             },
+            #[cfg(not(target_arch = "wasm32"))]
             NeoBtnVariant::Danger => NeoBtnPalette {
                 border: nuon::Color::new_u8(236, 209, 215, 1.0),
                 fill: nuon::theme::DANGER_SOFT,
@@ -133,6 +135,7 @@ impl NeoBtn {
         self
     }
 
+    #[cfg(not(target_arch = "wasm32"))]
     pub fn danger(mut self) -> Self {
         self.variant = NeoBtnVariant::Danger;
         self
