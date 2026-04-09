@@ -20,6 +20,7 @@ glyphon.workspace = true
 wgpu-jumpstart.workspace = true
 piano-layout.workspace = true
 midi-file.workspace = true
+web-time.workspace = true
 profiling.workspace = true
 euclid.workspace = true
 dpi.workspace = true

@@ -35,14 +35,14 @@ impl ToastManager {
 }
 
 struct Toast {
-    start_time: std::time::Instant,
+    start_time: web_time::Instant,
     text: String,
 }
 
 impl Toast {
     fn new(text: String) -> Self {
         Self {
-            start_time: std::time::Instant::now(),
+            start_time: web_time::Instant::now(),
             text,
         }
     }

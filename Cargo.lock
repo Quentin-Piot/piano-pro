@@ -1610,6 +1610,8 @@ dependencies = [
  "puffin",
  "puffin_http",
  "rfd",
+ "wasm-bindgen-futures",
+ "web-time",
  "wgpu",
  "wgpu-jumpstart",
  "winit",
@@ -1662,6 +1664,7 @@ dependencies = [
  "profiling",
  "ron",
  "serde",
+ "web-time",
  "wgpu",
  "wgpu-jumpstart",
 ]
@@ -1680,6 +1683,7 @@ version = "0.1.0"
 dependencies = [
  "log",
  "midi-file",
+ "neothesia",
  "neothesia-core",
  "nuon",
  "oxisynth",
@@ -1690,6 +1694,7 @@ dependencies = [
  "wasm-bindgen",
  "wasm-bindgen-futures",
  "web-sys",
+ "web-time",
  "wgpu",
  "wgpu-jumpstart",
  "winit",

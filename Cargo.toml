@@ -50,6 +50,7 @@ futures-channel = "0.3"
 euclid = "0.22"
 
 lilt = "0.8"
+    web-time = "1"
 winit = "0.30"
 dpi = "0.1"
 rfd = "0.17"

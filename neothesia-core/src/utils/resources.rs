@@ -108,7 +108,9 @@ pub fn settings_ron() -> Option<PathBuf> {
     return Some(PathBuf::from("./settings.ron"));
 
     #[cfg(target_os = "macos")]
-    return bundled_resource_path("settings", "ron").map(PathBuf::from);
+    return bundled_resource_path("settings", "ron")
+        .map(PathBuf::from)
+        .or_else(|| macos_config_fallback().map(|p| p.join("settings.ron")));
 }
 
 pub fn midi_library_dir() -> Option<PathBuf> {
@@ -122,7 +124,16 @@ pub fn midi_library_dir() -> Option<PathBuf> {
     return Some(PathBuf::from("./midi"));
 
     #[cfg(target_os = "macos")]
-    return bundled_resource_path("midi", "").map(PathBuf::from);
+    return bundled_resource_path("midi", "")
+        .map(PathBuf::from)
+        .or_else(|| macos_config_fallback().map(|p| p.join("midi")));
+}
+
+#[cfg(target_os = "macos")]
+fn macos_config_fallback() -> Option<PathBuf> {
+    env::var_os("HOME")
+        .map(PathBuf::from)
+        .map(|h| h.join(".config").join("neothesia"))
 }
 
 #[cfg(target_os = "macos")]

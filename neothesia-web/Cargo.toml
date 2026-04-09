@@ -6,6 +6,7 @@ edition.workspace = true
 [dependencies]
 log.workspace = true
 midi-file.workspace = true
+neothesia = { path = "../neothesia", default-features = false }
 neothesia-core.workspace = true
 nuon.workspace = true
 piano-layout.workspace = true
@@ -33,6 +34,7 @@ web-sys = { workspace = true, features = [
   "Window",
 ] }
 wgpu = { workspace = true, features = ["webgl"] }
+web-time.workspace = true
 wgpu-jumpstart.workspace = true
 winit.workspace = true
 

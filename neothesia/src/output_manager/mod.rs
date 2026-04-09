@@ -1,4 +1,6 @@
+#[cfg(not(target_arch = "wasm32"))]
 mod midi_backend;
+#[cfg(not(target_arch = "wasm32"))]
 use midi_backend::{MidiBackend, MidiPortInfo};
 
 #[cfg(feature = "synth")]
@@ -7,10 +9,14 @@ mod synth_backend;
 #[cfg(feature = "synth")]
 use synth_backend::SynthBackend;
 
-use std::{
-    fmt::{self, Display, Formatter},
-    path::PathBuf,
-};
+#[cfg(target_arch = "wasm32")]
+pub mod web_backend;
+#[cfg(target_arch = "wasm32")]
+use web_backend::WebOutputSender;
+
+use std::fmt::{self, Display, Formatter};
+#[cfg(feature = "synth")]
+use std::path::PathBuf;
 
 use midi_file::midly::{MidiMessage, num::u4};
 
@@ -18,7 +24,10 @@ use midi_file::midly::{MidiMessage, num::u4};
 pub enum OutputDescriptor {
     #[cfg(feature = "synth")]
     Synth(Option<PathBuf>),
+    #[cfg(not(target_arch = "wasm32"))]
     MidiOut(MidiPortInfo),
+    #[cfg(target_arch = "wasm32")]
+    WebOutput,
     DummyOutput,
 }
 
@@ -32,11 +41,17 @@ impl OutputDescriptor {
     }
 
     pub fn is_midi(&self) -> bool {
-        matches!(self, OutputDescriptor::MidiOut(_))
+        #[cfg(not(target_arch = "wasm32"))]
+        return matches!(self, OutputDescriptor::MidiOut(_));
+        #[cfg(target_arch = "wasm32")]
+        return false;
     }
 
     pub fn is_synth(&self) -> bool {
-        matches!(self, OutputDescriptor::Synth(_))
+        #[cfg(feature = "synth")]
+        return matches!(self, OutputDescriptor::Synth(_));
+        #[cfg(not(feature = "synth"))]
+        return false;
     }
 }
 
@@ -45,7 +60,10 @@ impl Display for OutputDescriptor {
         match self {
             #[cfg(feature = "synth")]
             OutputDescriptor::Synth(_) => write!(f, "Buildin Synth"),
+            #[cfg(not(target_arch = "wasm32"))]
             OutputDescriptor::MidiOut(info) => write!(f, "{info}"),
+            #[cfg(target_arch = "wasm32")]
+            OutputDescriptor::WebOutput => write!(f, "Web Audio"),
             OutputDescriptor::DummyOutput => write!(f, "No Output"),
         }
     }
@@ -53,18 +71,24 @@ impl Display for OutputDescriptor {
 
 #[derive(Clone)]
 pub enum OutputConnection {
+    #[cfg(not(target_arch = "wasm32"))]
     Midi(midi_backend::MidiOutputConnection),
     #[cfg(feature = "synth")]
     Synth(synth_backend::SynthOutputConnection),
+    #[cfg(target_arch = "wasm32")]
+    Web(WebOutputSender),
     DummyOutput,
 }
 
 impl OutputConnection {
     pub fn midi_event(&self, channel: u4, msg: MidiMessage) {
         match self {
+            #[cfg(not(target_arch = "wasm32"))]
             OutputConnection::Midi(b) => b.midi_event(channel, msg),
             #[cfg(feature = "synth")]
             OutputConnection::Synth(b) => b.midi_event(channel, msg),
+            #[cfg(target_arch = "wasm32")]
+            OutputConnection::Web(b) => b.midi_event(channel, msg),
             OutputConnection::DummyOutput => {}
         }
     }
@@ -72,14 +96,19 @@ impl OutputConnection {
         match self {
             #[cfg(feature = "synth")]
             OutputConnection::Synth(b) => b.set_gain(gain),
+            #[cfg(target_arch = "wasm32")]
+            OutputConnection::Web(b) => b.set_gain(gain),
             _ => {}
         }
     }
     pub fn stop_all(&self) {
         match self {
+            #[cfg(not(target_arch = "wasm32"))]
             OutputConnection::Midi(b) => b.stop_all(),
             #[cfg(feature = "synth")]
             OutputConnection::Synth(b) => b.stop_all(),
+            #[cfg(target_arch = "wasm32")]
+            OutputConnection::Web(b) => b.stop_all(),
             OutputConnection::DummyOutput => {}
         }
     }
@@ -88,6 +117,7 @@ impl OutputConnection {
 pub struct OutputManager {
     #[cfg(feature = "synth")]
     synth_backend: Option<SynthBackend>,
+    #[cfg(not(target_arch = "wasm32"))]
     midi_backend: Option<MidiBackend>,
 
     output_connection: (OutputDescriptor, OutputConnection),
@@ -101,7 +131,7 @@ impl Default for OutputManager {
 
 impl OutputManager {
     pub fn new() -> Self {
-        #[cfg(feature = "synth")]
+        #[cfg(all(feature = "synth", not(target_arch = "wasm32")))]
         let synth_backend = match SynthBackend::new() {
             Ok(synth_backend) => Some(synth_backend),
             Err(err) => {
@@ -110,6 +140,7 @@ impl OutputManager {
             }
         };
 
+        #[cfg(not(target_arch = "wasm32"))]
         let midi_backend = match MidiBackend::new() {
             Ok(midi_device_manager) => Some(midi_device_manager),
             Err(e) => {
@@ -119,24 +150,34 @@ impl OutputManager {
         };
 
         Self {
-            #[cfg(feature = "synth")]
+            #[cfg(all(feature = "synth", not(target_arch = "wasm32")))]
             synth_backend,
+            #[cfg(not(target_arch = "wasm32"))]
             midi_backend,
 
             output_connection: (OutputDescriptor::DummyOutput, OutputConnection::DummyOutput),
         }
     }
 
+    /// Connect a web audio sender (WASM only).
+    #[cfg(target_arch = "wasm32")]
+    pub fn connect_web(&mut self, sender: WebOutputSender) {
+        self.output_connection = (OutputDescriptor::WebOutput, OutputConnection::Web(sender));
+    }
+
     pub fn outputs(&self) -> Vec<OutputDescriptor> {
         let mut outs = Vec::new();
 
-        #[cfg(feature = "synth")]
+        #[cfg(all(feature = "synth", not(target_arch = "wasm32")))]
         if let Some(synth) = &self.synth_backend {
             outs.append(&mut synth.get_outputs());
         }
+        #[cfg(not(target_arch = "wasm32"))]
         if let Some(midi) = &self.midi_backend {
             outs.append(&mut midi.get_outputs());
         }
+        #[cfg(target_arch = "wasm32")]
+        outs.push(OutputDescriptor::WebOutput);
 
         outs.push(OutputDescriptor::DummyOutput);
 
@@ -146,7 +187,7 @@ impl OutputManager {
     pub fn connect(&mut self, desc: OutputDescriptor) {
         if desc != self.output_connection.0 {
             match desc {
-                #[cfg(feature = "synth")]
+                #[cfg(all(feature = "synth", not(target_arch = "wasm32")))]
                 OutputDescriptor::Synth(ref font) => {
                     if let Some(ref mut synth) = self.synth_backend {
                         let resolved = if let Some(font) = font.clone() {
@@ -175,10 +216,15 @@ impl OutputManager {
                         }
                     }
                 }
+                #[cfg(not(target_arch = "wasm32"))]
                 OutputDescriptor::MidiOut(ref info) => {
                     if let Some(conn) = MidiBackend::new_output_connection(info) {
                         self.output_connection = (desc, OutputConnection::Midi(conn));
                     }
+                }
+                #[cfg(target_arch = "wasm32")]
+                OutputDescriptor::WebOutput => {
+                    // Web output is set via connect_web(); ignore if called from scene
                 }
                 OutputDescriptor::DummyOutput => {
                     self.output_connection = (desc, OutputConnection::DummyOutput);

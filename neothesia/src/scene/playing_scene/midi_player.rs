@@ -7,8 +7,9 @@ use crate::{
 use neothesia_core::piano_layout;
 use std::{
     collections::{HashMap, HashSet},
-    time::{Duration, Instant},
+    time::Duration,
 };
+use web_time::Instant;
 
 pub struct MidiPlayer {
     playback: midi_file::PlaybackState,

@@ -459,6 +459,7 @@ pub fn open_soundfont_picker(data: &mut UiState) -> BoxFuture<MsgFn> {
     })
 }
 
+#[cfg(not(target_arch = "wasm32"))]
 async fn open_sondfont_picker_fut() -> Option<PathBuf> {
     let file = rfd::AsyncFileDialog::new()
         .add_filter("SoundFont2", &["sf2"])
@@ -472,4 +473,9 @@ async fn open_sondfont_picker_fut() -> Option<PathBuf> {
     }
 
     file.map(|f| f.path().to_owned())
+}
+
+#[cfg(target_arch = "wasm32")]
+async fn open_sondfont_picker_fut() -> Option<PathBuf> {
+    None
 }

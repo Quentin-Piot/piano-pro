@@ -105,6 +105,18 @@ pub struct MenuScene {
     renaming_stored_name: Option<String>,
 }
 
+#[cfg(not(target_arch = "wasm32"))]
+fn cancel_pending_import(state: &mut UiState) {
+    if let Some(pending) = state.pending_import.take() {
+        let _ = std::fs::remove_file(&pending.stored_path);
+    }
+}
+
+#[cfg(target_arch = "wasm32")]
+fn cancel_pending_import(state: &mut UiState) {
+    state.pending_import = None;
+}
+
 impl MenuScene {
     pub fn new(ctx: &mut Context, song: Option<Song>) -> Self {
         let iced_state = UiState::new(ctx, song);
@@ -442,6 +454,12 @@ impl MenuScene {
                             .label("Import Audio")
                             .icon(icons::note_list_icon())
                             .meta("A")
+                            .subtitle(if cfg!(target_arch = "wasm32") {
+                                "Desktop only"
+                            } else {
+                                ""
+                            })
+                            .disabled(cfg!(target_arch = "wasm32"))
                             .build(ui)
                         {
                             self.futures.push(open_audio_file_picker(&mut self.state));
@@ -970,9 +988,7 @@ impl MenuScene {
 
     fn cancel_name_entry(&mut self) {
         if self.renaming_stored_name.is_none() {
-            if let Some(pending) = self.state.pending_import.take() {
-                let _ = std::fs::remove_file(&pending.stored_path);
-            }
+            self::cancel_pending_import(&mut self.state);
         }
         self.renaming_stored_name = None;
         self.name_input.clear();
@@ -1084,6 +1100,7 @@ impl Scene for MenuScene {
                     state::freeplay(&self.state, ctx);
                 }
 
+                #[cfg(not(target_arch = "wasm32"))]
                 if event.key_pressed(Key::Character("a")) {
                     self.futures.push(open_audio_file_picker(&mut self.state));
                 }
