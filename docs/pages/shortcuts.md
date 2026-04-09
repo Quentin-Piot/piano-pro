@@ -1,5 +1,11 @@
 # Shortcuts
 
+## Web version
+
+- The browser version supports the same playback shortcuts once a piece is loaded.
+- Audio import shortcuts do not apply on web because audio-to-MIDI import is desktop-only.
+- The main menu does not expose the desktop Exit action on web.
+
 ### In Player
 
 | Key                 | Action                                                                                                     |

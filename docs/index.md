@@ -12,7 +12,8 @@ hero:
   actions:
     - theme: brand
       text: Launch Web App
-      link: /pages/web-app
+      link: /app/
+      target: _self
     - theme: brand
       text: Download
       link: /pages/installation
