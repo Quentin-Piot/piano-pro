@@ -1,6 +1,11 @@
 #[cfg(target_arch = "wasm32")]
 mod wasm {
-    use std::{cell::RefCell, rc::Rc, sync::Arc, time::Duration};
+    use std::{
+        cell::{Cell, RefCell},
+        rc::Rc,
+        sync::Arc,
+        time::Duration,
+    };
 
     use midi_file::midly::MidiMessage;
     use neothesia::{
@@ -273,13 +278,24 @@ mod wasm {
             self.game_scene.update(&mut self.context, delta);
         }
 
-        fn render(&mut self) {
+        fn render(&mut self) -> bool {
             let frame = match self.surface.get_current_texture() {
                 Ok(f) => f,
-                Err(err) => {
-                    log::warn!("failed to acquire web surface texture: {err:?}");
-                    return;
-                }
+                Err(err) => match err {
+                    wgpu::SurfaceError::Lost | wgpu::SurfaceError::Outdated => {
+                        log::warn!("web surface became unavailable, reconfiguring: {err:?}");
+                        self.resize();
+                        return true;
+                    }
+                    wgpu::SurfaceError::Timeout => {
+                        log::warn!("timed out acquiring web surface texture");
+                        return true;
+                    }
+                    _ => {
+                        log::error!("failed to acquire web surface texture: {err:?}");
+                        return false;
+                    }
+                },
             };
 
             let view = frame
@@ -319,6 +335,7 @@ mod wasm {
             self.context.window.pre_present_notify();
             frame.present();
             self.context.text_renderer_factory.end_frame();
+            true
         }
     }
 
@@ -328,15 +345,15 @@ mod wasm {
         canvas: web_sys::HtmlCanvasElement,
         proxy: EventLoopProxy<NeothesiaEvent>,
         app: Rc<RefCell<Option<WebApp>>>,
-        initializing: bool,
+        initializing: Rc<Cell<bool>>,
     }
 
     impl ApplicationHandler<NeothesiaEvent> for WebBootstrap {
         fn resumed(&mut self, event_loop: &ActiveEventLoop) {
-            if self.initializing || self.app.borrow().is_some() {
+            if self.initializing.get() || self.app.borrow().is_some() {
                 return;
             }
-            self.initializing = true;
+            self.initializing.set(true);
 
             let attributes = winit::window::Window::default_attributes()
                 .with_title("PianoPro")
@@ -346,7 +363,7 @@ mod wasm {
                 Ok(w) => Arc::new(w),
                 Err(err) => {
                     log::error!("failed to create web window: {err}");
-                    self.initializing = false;
+                    self.initializing.set(false);
                     return;
                 }
             };
@@ -354,14 +371,19 @@ mod wasm {
             let app_cell = self.app.clone();
             let proxy = self.proxy.clone();
             let canvas = self.canvas.clone();
+            let initializing = self.initializing.clone();
 
             wasm_bindgen_futures::spawn_local(async move {
                 match WebApp::new(window, canvas, proxy).await {
                     Ok(app) => {
                         app.context.window.request_redraw();
                         *app_cell.borrow_mut() = Some(app);
+                        initializing.set(false);
                     }
-                    Err(err) => log::error!("PianoPro web init failed: {err}"),
+                    Err(err) => {
+                        log::error!("PianoPro web init failed: {err}");
+                        initializing.set(false);
+                    }
                 }
             });
         }
@@ -483,7 +505,10 @@ mod wasm {
                     app.context.frame_timestamp = web_time::Instant::now();
                     app.drain_audio_queue();
                     app.update(delta);
-                    app.render();
+                    if !app.render() {
+                        drop(app_ref);
+                        event_loop.exit();
+                    }
                 }
                 WindowEvent::CloseRequested => event_loop.exit(),
                 _ => {
@@ -543,7 +568,7 @@ mod wasm {
             canvas,
             proxy,
             app: Rc::new(RefCell::new(None)),
-            initializing: false,
+            initializing: Rc::new(Cell::new(false)),
         };
 
         event_loop.spawn_app(bootstrap);

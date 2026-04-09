@@ -54,11 +54,26 @@ fn draw_card(
         .build(ui);
 }
 
+#[cfg(not(target_arch = "wasm32"))]
 fn on_async<T, Fut, FN>(future: Fut, f: FN) -> BoxFuture<MsgFn>
 where
     T: 'static,
     Fut: Future<Output = T> + Send + 'static,
     FN: FnOnce(T, &mut UiState, &mut Context) + Send + 'static,
+{
+    Box::pin(async {
+        let res = future.await;
+        let f: MsgFn = Box::new(move |data, ctx| f(res, data, ctx));
+        f
+    })
+}
+
+#[cfg(target_arch = "wasm32")]
+fn on_async<T, Fut, FN>(future: Fut, f: FN) -> BoxFuture<MsgFn>
+where
+    T: 'static,
+    Fut: Future<Output = T> + 'static,
+    FN: FnOnce(T, &mut UiState, &mut Context) + 'static,
 {
     Box::pin(async {
         let res = future.await;

@@ -36,7 +36,7 @@ impl Gpu {
 
         let mut state_machine = FallbackStateMachine::DefaultOrEnv;
         let mut desc = wgpu::InstanceDescriptor::from_env_or_default();
-        #[cfg(target_family = "wasm")]
+        #[cfg(target_arch = "wasm32")]
         {
             // wgpu 28's BrowserWebGpu backend currently panics in some browsers while casting the
             // canvas context. Use WebGL2 for the web MVP until that path is stable in practice.
@@ -48,7 +48,7 @@ impl Gpu {
 
             match res {
                 Ok(res) => break res,
-                Err(err) if cfg!(target_family = "wasm") => return Err(err),
+                Err(err) if cfg!(target_arch = "wasm32") => return Err(err),
                 Err(err) if cfg!(target_os = "macos") => return Err(err),
                 // Wgpu backend picking leaves much to be desired, so let's bruteforce all possible
                 // backend options manually before giving up
@@ -99,11 +99,11 @@ impl Gpu {
             })
             .await?;
 
-        #[cfg(target_family = "wasm")]
+        #[cfg(target_arch = "wasm32")]
         let required_limits =
             wgpu::Limits::downlevel_webgl2_defaults().using_resolution(adapter.limits());
 
-        #[cfg(not(target_family = "wasm"))]
+        #[cfg(not(target_arch = "wasm32"))]
         let required_limits = wgpu::Limits {
             max_compute_workgroup_storage_size: 0,
             max_compute_invocations_per_workgroup: 0,

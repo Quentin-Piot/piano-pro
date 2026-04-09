@@ -22,18 +22,16 @@ thread_local! {
     // In-memory store: stored_name -> raw MIDI bytes
     static WEB_MIDI_STORE: RefCell<HashMap<String, Vec<u8>>> = RefCell::new(HashMap::new());
     // Result slot for the async file picker: None = not ready, Some(v) = done
-    static WEB_IMPORT_RESULT: RefCell<Option<Option<PendingImport>>> = const { RefCell::new(None) };
+    static WEB_IMPORT_RESULT: RefCell<Option<Result<Option<PendingImport>, String>>> = const { RefCell::new(None) };
 }
 
 #[cfg(target_arch = "wasm32")]
-fn store_midi(stored_name: &str, bytes: Vec<u8>) {
+fn store_midi(stored_name: &str, bytes: Vec<u8>) -> Result<(), String> {
+    persist_midi(stored_name, &bytes)?;
     WEB_MIDI_STORE.with(|store| {
-        store
-            .borrow_mut()
-            .insert(stored_name.to_string(), bytes.clone());
+        store.borrow_mut().insert(stored_name.to_string(), bytes);
     });
-
-    persist_midi(stored_name, &bytes);
+    Ok(())
 }
 
 #[cfg(target_arch = "wasm32")]
@@ -64,22 +62,25 @@ pub fn remove_web_midi(stored_name: &str) {
 }
 
 #[cfg(target_arch = "wasm32")]
-fn persist_midi(stored_name: &str, bytes: &[u8]) {
+fn persist_midi(stored_name: &str, bytes: &[u8]) -> Result<(), String> {
     let Some(storage) = local_storage() else {
-        return;
+        return Err(String::from("Browser storage is unavailable."));
     };
 
     let serialized = match serde_json::to_string(bytes) {
         Ok(serialized) => serialized,
         Err(err) => {
-            log::error!("Failed to serialize web MIDI bytes: {err}");
-            return;
+            return Err(format!("Failed to serialize web MIDI bytes: {err}"));
         }
     };
 
     if let Err(err) = storage.set_item(&midi_storage_key(stored_name), &serialized) {
-        log::error!("Failed to persist web MIDI bytes for {stored_name}: {err:?}");
+        return Err(format!(
+            "Failed to persist web MIDI bytes for {stored_name}: {err:?}"
+        ));
     }
+
+    Ok(())
 }
 
 #[cfg(target_arch = "wasm32")]
@@ -108,40 +109,6 @@ fn midi_storage_key(stored_name: &str) -> String {
 fn local_storage() -> Option<web_sys::Storage> {
     web_sys::window().and_then(|window| window.local_storage().ok().flatten())
 }
-
-/// Future that polls the WEB_IMPORT_RESULT thread-local each frame.
-/// Returns Pending until the spawn_local file-picker task fills the slot.
-#[cfg(target_arch = "wasm32")]
-struct WasmImportFuture;
-
-#[cfg(target_arch = "wasm32")]
-impl std::future::Future for WasmImportFuture {
-    type Output = MsgFn;
-
-    fn poll(
-        self: std::pin::Pin<&mut Self>,
-        _cx: &mut std::task::Context<'_>,
-    ) -> std::task::Poll<MsgFn> {
-        let has_result = WEB_IMPORT_RESULT.with(|c| c.borrow().is_some());
-        if !has_result {
-            return std::task::Poll::Pending;
-        }
-        let import = WEB_IMPORT_RESULT.with(|c| c.borrow_mut().take().flatten());
-        std::task::Poll::Ready(Box::new(
-            move |data: &mut UiState, ctx: &mut crate::context::Context| {
-                if let Some(import) = import {
-                    data.pending_import = Some(import);
-                    ctx.window.focus_window();
-                }
-                data.is_loading = false;
-            },
-        ))
-    }
-}
-
-// SAFETY: WASM is single-threaded; Send is vacuously satisfied.
-#[cfg(target_arch = "wasm32")]
-unsafe impl Send for WasmImportFuture {}
 
 #[derive(Debug, Clone)]
 pub struct PendingImport {
@@ -175,8 +142,27 @@ pub fn open_midi_file_picker(data: &mut UiState) -> BoxFuture<MsgFn> {
         WEB_IMPORT_RESULT.with(|c| *c.borrow_mut() = Some(result));
     });
 
-    // Return a polling future that reads the result slot each frame
-    Box::pin(WasmImportFuture)
+    Box::pin(std::future::poll_fn(|_cx| {
+        let Some(result) = WEB_IMPORT_RESULT.with(|c| c.borrow_mut().take()) else {
+            return std::task::Poll::Pending;
+        };
+
+        std::task::Poll::Ready(Box::new(
+            move |data: &mut UiState, ctx: &mut crate::context::Context| {
+                match result {
+                    Ok(Some(import)) => {
+                        data.pending_import = Some(import);
+                        ctx.window.focus_window();
+                    }
+                    Ok(None) => {}
+                    Err(err) => {
+                        log::error!("{err}");
+                    }
+                }
+                data.is_loading = false;
+            },
+        ) as MsgFn)
+    }))
 }
 
 pub fn load_from_library(stored_name: String) -> BoxFuture<MsgFn> {
@@ -275,11 +261,15 @@ async fn open_midi_file_picker_fut() -> Option<PendingImport> {
 }
 
 #[cfg(target_arch = "wasm32")]
-async fn open_midi_file_picker_fut() -> Option<PendingImport> {
+async fn open_midi_file_picker_fut() -> Result<Option<PendingImport>, String> {
     let file = rfd::AsyncFileDialog::new()
         .add_filter("midi", &["mid", "midi"])
         .pick_file()
-        .await?;
+        .await;
+
+    let Some(file) = file else {
+        return Ok(None);
+    };
 
     let file_name = file.file_name();
     let bytes = file.read().await;
@@ -294,8 +284,7 @@ async fn open_midi_file_picker_fut() -> Option<PendingImport> {
         });
 
     midi_file::MidiFile::from_bytes(&file_name, &bytes)
-        .map_err(|e| log::error!("Invalid MIDI file: {e}"))
-        .ok()?;
+        .map_err(|e| format!("Invalid MIDI file: {e}"))?;
 
     let stem = file_name
         .strip_suffix(".mid")
@@ -304,7 +293,7 @@ async fn open_midi_file_picker_fut() -> Option<PendingImport> {
     let entry = MidiEntryV1::new(display_name, stem.to_string());
     let stored_path = PathBuf::from(&entry.stored_name);
 
-    store_midi(&entry.stored_name, bytes);
+    store_midi(&entry.stored_name, bytes)?;
 
-    Some(PendingImport { stored_path, entry })
+    Ok(Some(PendingImport { stored_path, entry }))
 }
