@@ -6,7 +6,7 @@ title: Web App
 
 Use PianoPro directly in the browser.
 
-[Open PianoPro Web](/app/)
+[Open PianoPro Web](/app/){target="_self"}
 
 ## Notes
 
