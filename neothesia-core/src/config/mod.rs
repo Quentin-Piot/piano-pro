@@ -9,12 +9,31 @@ use model::{
 };
 pub use model::{ColorSchemaV1, MidiEntryV1};
 
+#[cfg(target_arch = "wasm32")]
+const WASM_CONFIG_STORAGE_KEY: &str = "pianopro.config.v1";
+
+#[cfg(not(target_arch = "wasm32"))]
 fn ron_options() -> ron::Options {
     ron::Options::default()
         .with_default_extension(ron::extensions::Extensions::UNWRAP_VARIANT_NEWTYPES)
 }
 
 impl Model {
+    #[cfg(target_arch = "wasm32")]
+    fn load() -> Self {
+        if let Some(storage) = wasm_storage()
+            && let Ok(Some(raw)) = storage.get_item(WASM_CONFIG_STORAGE_KEY)
+        {
+            match serde_json::from_str(&raw) {
+                Ok(config) => return config,
+                Err(err) => log::error!("Failed to parse web config: {err}"),
+            }
+        }
+
+        Self::default()
+    }
+
+    #[cfg(not(target_arch = "wasm32"))]
     fn load() -> Self {
         let config: Option<Self> = if let Some(path) = crate::utils::resources::settings_ron() {
             if let Ok(file) = std::fs::read_to_string(path) {
@@ -288,16 +307,41 @@ impl Config {
     }
 
     pub fn save(&self) {
-        let res = ron_options().to_string_pretty(
-            &Model::from_config(self.clone()),
-            ron::ser::PrettyConfig::default(),
-        );
-
-        if let Ok(s) = res
-            && let Some(path) = crate::utils::resources::settings_ron()
+        #[cfg(target_arch = "wasm32")]
         {
-            std::fs::create_dir_all(path.parent().unwrap()).ok();
-            std::fs::write(path, s).ok();
+            let serialized = match serde_json::to_string(&Model::from_config(self.clone())) {
+                Ok(serialized) => serialized,
+                Err(err) => {
+                    log::error!("Failed to serialize web config: {err}");
+                    return;
+                }
+            };
+
+            if let Some(storage) = wasm_storage()
+                && let Err(err) = storage.set_item(WASM_CONFIG_STORAGE_KEY, &serialized)
+            {
+                log::error!("Failed to persist web config: {err:?}");
+            }
+        }
+
+        #[cfg(not(target_arch = "wasm32"))]
+        {
+            let res = ron_options().to_string_pretty(
+                &Model::from_config(self.clone()),
+                ron::ser::PrettyConfig::default(),
+            );
+
+            if let Ok(s) = res
+                && let Some(path) = crate::utils::resources::settings_ron()
+            {
+                std::fs::create_dir_all(path.parent().unwrap()).ok();
+                std::fs::write(path, s).ok();
+            }
         }
     }
+}
+
+#[cfg(target_arch = "wasm32")]
+fn wasm_storage() -> Option<web_sys::Storage> {
+    web_sys::window().and_then(|window| window.local_storage().ok().flatten())
 }

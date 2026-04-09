@@ -36,12 +36,19 @@ impl Gpu {
 
         let mut state_machine = FallbackStateMachine::DefaultOrEnv;
         let mut desc = wgpu::InstanceDescriptor::from_env_or_default();
+        #[cfg(target_arch = "wasm32")]
+        {
+            // wgpu 28's BrowserWebGpu backend currently panics in some browsers while casting the
+            // canvas context. Use WebGL2 for the web MVP until that path is stable in practice.
+            desc.backends = wgpu::Backends::GL;
+        }
 
         let (gpu, surface) = loop {
             let res = Self::try_init(window(), &desc).await;
 
             match res {
                 Ok(res) => break res,
+                Err(err) if cfg!(target_arch = "wasm32") => return Err(err),
                 Err(err) if cfg!(target_os = "macos") => return Err(err),
                 // Wgpu backend picking leaves much to be desired, so let's bruteforce all possible
                 // backend options manually before giving up
@@ -92,19 +99,26 @@ impl Gpu {
             })
             .await?;
 
+        #[cfg(target_arch = "wasm32")]
+        let required_limits =
+            wgpu::Limits::downlevel_webgl2_defaults().using_resolution(adapter.limits());
+
+        #[cfg(not(target_arch = "wasm32"))]
+        let required_limits = wgpu::Limits {
+            max_compute_workgroup_storage_size: 0,
+            max_compute_invocations_per_workgroup: 0,
+            max_compute_workgroup_size_x: 0,
+            max_compute_workgroup_size_y: 0,
+            max_compute_workgroup_size_z: 0,
+            max_compute_workgroups_per_dimension: 0,
+            ..wgpu::Limits::downlevel_defaults()
+        }
+        .using_resolution(adapter.limits());
+
         let (device, queue) = adapter
             .request_device(&wgpu::DeviceDescriptor {
                 required_features: wgpu::Features::empty(),
-                required_limits: wgpu::Limits {
-                    max_compute_workgroup_storage_size: 0,
-                    max_compute_invocations_per_workgroup: 0,
-                    max_compute_workgroup_size_x: 0,
-                    max_compute_workgroup_size_y: 0,
-                    max_compute_workgroup_size_z: 0,
-                    max_compute_workgroups_per_dimension: 0,
-                    ..wgpu::Limits::downlevel_defaults()
-                }
-                .using_resolution(adapter.limits()),
+                required_limits,
                 ..Default::default()
             })
             .await

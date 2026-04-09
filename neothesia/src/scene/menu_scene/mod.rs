@@ -23,7 +23,9 @@ use winit::{
     keyboard::{Key, NamedKey},
 };
 
-use crate::{NeothesiaEvent, context::Context, icons, scene::Scene, song::Song};
+#[cfg(not(target_arch = "wasm32"))]
+use crate::NeothesiaEvent;
+use crate::{context::Context, icons, scene::Scene, song::Song};
 
 use std::task::Waker;
 
@@ -52,11 +54,26 @@ fn draw_card(
         .build(ui);
 }
 
+#[cfg(not(target_arch = "wasm32"))]
 fn on_async<T, Fut, FN>(future: Fut, f: FN) -> BoxFuture<MsgFn>
 where
     T: 'static,
     Fut: Future<Output = T> + Send + 'static,
     FN: FnOnce(T, &mut UiState, &mut Context) + Send + 'static,
+{
+    Box::pin(async {
+        let res = future.await;
+        let f: MsgFn = Box::new(move |data, ctx| f(res, data, ctx));
+        f
+    })
+}
+
+#[cfg(target_arch = "wasm32")]
+fn on_async<T, Fut, FN>(future: Fut, f: FN) -> BoxFuture<MsgFn>
+where
+    T: 'static,
+    Fut: Future<Output = T> + 'static,
+    FN: FnOnce(T, &mut UiState, &mut Context) + 'static,
 {
     Box::pin(async {
         let res = future.await;
@@ -103,6 +120,20 @@ pub struct MenuScene {
 
     name_input: nuon::TextInputState,
     renaming_stored_name: Option<String>,
+}
+
+#[cfg(not(target_arch = "wasm32"))]
+fn cancel_pending_import(state: &mut UiState) {
+    if let Some(pending) = state.pending_import.take() {
+        let _ = std::fs::remove_file(&pending.stored_path);
+    }
+}
+
+#[cfg(target_arch = "wasm32")]
+fn cancel_pending_import(state: &mut UiState) {
+    if let Some(pending) = state.pending_import.take() {
+        self::midi_picker::remove_web_midi(&pending.entry.stored_name);
+    }
 }
 
 impl MenuScene {
@@ -442,6 +473,12 @@ impl MenuScene {
                             .label("Import Audio")
                             .icon(icons::note_list_icon())
                             .meta("A")
+                            .subtitle(if cfg!(target_arch = "wasm32") {
+                                "Desktop only"
+                            } else {
+                                ""
+                            })
+                            .disabled(cfg!(target_arch = "wasm32"))
                             .build(ui)
                         {
                             self.futures.push(open_audio_file_picker(&mut self.state));
@@ -491,17 +528,20 @@ impl MenuScene {
                             self.state.go_to(Page::Settings);
                         }
 
-                        nuon::translate().y(action_h + 12.0).add_to_current(ui);
-
-                        if neo_btn()
-                            .size(right_w, action_h)
-                            .label("Exit")
-                            .icon(icons::exit_icon())
-                            .meta("ESC")
-                            .danger()
-                            .build(ui)
+                        #[cfg(not(target_arch = "wasm32"))]
                         {
-                            ctx.proxy.send_event(NeothesiaEvent::Exit).ok();
+                            nuon::translate().y(action_h + 12.0).add_to_current(ui);
+
+                            if neo_btn()
+                                .size(right_w, action_h)
+                                .label("Exit")
+                                .icon(icons::exit_icon())
+                                .meta("ESC")
+                                .danger()
+                                .build(ui)
+                            {
+                                ctx.proxy.send_event(NeothesiaEvent::Exit).ok();
+                            }
                         }
                     });
             });
@@ -970,9 +1010,7 @@ impl MenuScene {
 
     fn cancel_name_entry(&mut self) {
         if self.renaming_stored_name.is_none() {
-            if let Some(pending) = self.state.pending_import.take() {
-                let _ = std::fs::remove_file(&pending.stored_path);
-            }
+            self::cancel_pending_import(&mut self.state);
         }
         self.renaming_stored_name = None;
         self.name_input.clear();
@@ -1072,6 +1110,7 @@ impl Scene for MenuScene {
                     self.state.go_to(Page::Library);
                 }
 
+                #[cfg(not(target_arch = "wasm32"))]
                 if event.key_pressed(Key::Named(NamedKey::Escape)) {
                     ctx.proxy.send_event(NeothesiaEvent::Exit).ok();
                 }
@@ -1084,6 +1123,7 @@ impl Scene for MenuScene {
                     state::freeplay(&self.state, ctx);
                 }
 
+                #[cfg(not(target_arch = "wasm32"))]
                 if event.key_pressed(Key::Character("a")) {
                     self.futures.push(open_audio_file_picker(&mut self.state));
                 }
