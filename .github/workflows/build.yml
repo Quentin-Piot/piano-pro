@@ -4,7 +4,6 @@ on:
   push:
     branches:    
       - master
-  pull_request:
 
 jobs:
   build_ubuntu:
@@ -59,4 +58,3 @@ jobs:
         uses: ./.github/actions/macos
       - name: ls
         run: ls -l .github/app/app.zip
-
