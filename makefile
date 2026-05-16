@@ -18,3 +18,29 @@ build-web:
 
 serve-web:
 	cd neothesia-web && env -u NO_COLOR trunk serve --open
+
+ANDROID_PROJECT = neothesia-android/android-project
+ANDROID_JNI_DIR = $(ANDROID_PROJECT)/app/src/main/jniLibs
+
+check-android:
+	cargo ndk -t arm64-v8a --platform 26 check -p neothesia-android
+
+build-android:
+	cargo ndk -t arm64-v8a -t armeabi-v7a --platform 26 \
+		-o $(ANDROID_JNI_DIR) \
+		build -p neothesia-android --release
+	cd $(ANDROID_PROJECT) && ./gradlew assembleDebug
+
+clean-android:
+	cd $(ANDROID_PROJECT) && ./gradlew clean
+	cargo clean -p neothesia-android
+	rm -rf $(ANDROID_JNI_DIR)/arm64-v8a/libneothesia_android.so
+	rm -rf $(ANDROID_JNI_DIR)/armeabi-v7a/libneothesia_android.so
+
+install-android:
+	cd $(ANDROID_PROJECT) && ./gradlew installDebug
+
+run-android:
+	adb shell am start -n com.pianopro.app/android.app.NativeActivity
+
+.PHONY: check-android build-android clean-android install-android run-android

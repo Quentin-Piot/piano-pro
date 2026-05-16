@@ -1,0 +1,31 @@
+#!/bin/sh
+# Gradle startup script for UN*X
+
+set -e
+
+# Resolve the script directory
+APP_HOME=$(cd "$(dirname "$0")" && pwd -P)
+
+# Locate Java
+if [ -n "${JAVA_HOME}" ]; then
+    JAVACMD="${JAVA_HOME}/bin/java"
+else
+    JAVACMD="java"
+fi
+
+command -v "$JAVACMD" >/dev/null 2>&1 || {
+    echo "ERROR: JAVA_HOME is not set and no 'java' command found in PATH." >&2
+    exit 1
+}
+
+CLASSPATH="${APP_HOME}/gradle/wrapper/gradle-wrapper.jar"
+
+exec "$JAVACMD" \
+    -Xmx64m \
+    -Xms64m \
+    ${JAVA_OPTS} \
+    ${GRADLE_OPTS} \
+    "-Dorg.gradle.appname=$(basename "$0")" \
+    -classpath "$CLASSPATH" \
+    org.gradle.wrapper.GradleWrapperMain \
+    "$@"

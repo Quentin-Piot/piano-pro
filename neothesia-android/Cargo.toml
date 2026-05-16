@@ -1,0 +1,29 @@
+[package]
+name = "neothesia-android"
+version = "0.1.0"
+edition.workspace = true
+
+[lib]
+crate-type = ["cdylib"]
+name = "neothesia_android"
+
+[lints]
+workspace = true
+
+[target.'cfg(target_os = "android")'.dependencies]
+log.workspace = true
+neothesia = { path = "../neothesia", default-features = false, features = ["oxi-synth"] }
+neothesia-core.workspace = true
+midi-file.workspace = true
+nuon.workspace = true
+piano-layout.workspace = true
+wgpu.workspace = true
+wgpu-jumpstart.workspace = true
+winit = { workspace = true, features = ["android-native-activity"] }
+android-activity.workspace = true
+android_logger.workspace = true
+oxisynth.workspace = true
+web-time.workspace = true
+pollster.workspace = true
+jni = { version = "0.21", default-features = false }
+ndk-context = "0.1"

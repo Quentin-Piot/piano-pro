@@ -10,7 +10,7 @@ use neothesia_core::render::{Image, ImageIdentifier, ImageRenderer, QuadRenderer
 use std::{collections::HashMap, time::Duration};
 use winit::{
     dpi::{LogicalPosition, LogicalSize},
-    event::{ElementState, KeyEvent, WindowEvent},
+    event::{ElementState, KeyEvent, TouchPhase, WindowEvent},
     keyboard::Key,
 };
 
@@ -19,6 +19,14 @@ pub trait Scene {
     fn render<'pass>(&'pass mut self, rpass: &mut wgpu_jumpstart::RenderPass<'pass>);
     fn window_event(&mut self, _ctx: &mut Context, _event: &WindowEvent) {}
     fn midi_event(&mut self, _ctx: &mut Context, _channel: u8, _message: &MidiMessage) {}
+    fn touch_event(
+        &mut self,
+        _ctx: &mut Context,
+        _phase: TouchPhase,
+        _pos: LogicalPosition<f32>,
+    ) -> bool {
+        false
+    }
 }
 
 pub fn handle_pc_keyboard_to_midi_event(ctx: &mut Context, event: &WindowEvent) {

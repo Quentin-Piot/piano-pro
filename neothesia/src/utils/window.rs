@@ -23,6 +23,8 @@ pub struct WindowState {
     pub modifiers_state: ModifiersState,
     pub left_mouse_btn: bool,
     pub right_mouse_btn: bool,
+
+    pub safe_area_top: f32,
 }
 
 impl WindowState {
@@ -52,6 +54,11 @@ impl WindowState {
             modifiers_state: ModifiersState::default(),
             left_mouse_btn: false,
             right_mouse_btn: false,
+
+            #[cfg(target_os = "android")]
+            safe_area_top: 28.0,
+            #[cfg(not(target_os = "android"))]
+            safe_area_top: 0.0,
         }
     }
 
@@ -64,8 +71,8 @@ impl WindowState {
                 self.logical_size = ps.to_logical(self.scale_factor);
             }
             WindowEvent::ScaleFactorChanged { scale_factor, .. } => {
-                self.logical_size = self.physical_size.to_logical(self.scale_factor);
                 self.scale_factor = *scale_factor;
+                self.logical_size = self.physical_size.to_logical(self.scale_factor);
             }
             WindowEvent::CursorMoved { position, .. } => {
                 self.cursor_physical_position = *position;

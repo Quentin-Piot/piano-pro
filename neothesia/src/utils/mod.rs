@@ -2,10 +2,10 @@ use std::{future::Future, pin::Pin};
 
 pub use neothesia_core::utils::*;
 
-#[cfg(target_arch = "wasm32")]
-pub type BoxFuture<T> = Pin<Box<dyn Future<Output = T> + 'static>>;
-#[cfg(not(target_arch = "wasm32"))]
+#[cfg(desktop)]
 pub type BoxFuture<T> = Pin<Box<dyn Future<Output = T> + Send + 'static>>;
+#[cfg(not(desktop))]
+pub type BoxFuture<T> = Pin<Box<dyn Future<Output = T> + 'static>>;
 
 pub mod task;
 pub mod window;

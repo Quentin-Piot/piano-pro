@@ -1,0 +1,7 @@
+# Build artifacts
+target/
+
+# Android project artifacts
+android-project/.gradle/
+android-project/app/build/
+android-project/build/

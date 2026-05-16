@@ -6,6 +6,8 @@ use audio_import::{AudioImportState, convert_selected_audio, open_audio_file_pic
 
 mod midi_picker;
 use midi_picker::{load_from_library, open_midi_file_picker};
+#[cfg(target_os = "android")]
+use midi_picker::{process_pending_android_result, scan_and_register_midi_files};
 
 mod neo_btn;
 use neo_btn::{neo_btn, neo_btn_icon};
@@ -23,7 +25,7 @@ use winit::{
     keyboard::{Key, NamedKey},
 };
 
-#[cfg(not(target_arch = "wasm32"))]
+#[cfg(desktop)]
 use crate::NeothesiaEvent;
 use crate::{context::Context, icons, scene::Scene, song::Song};
 
@@ -55,30 +57,23 @@ fn draw_card(
 }
 
 #[cfg(not(target_arch = "wasm32"))]
-fn on_async<T, Fut, FN>(future: Fut, f: FN) -> BoxFuture<MsgFn>
-where
-    T: 'static,
-    Fut: Future<Output = T> + Send + 'static,
-    FN: FnOnce(T, &mut UiState, &mut Context) + Send + 'static,
-{
-    Box::pin(async {
-        let res = future.await;
-        let f: MsgFn = Box::new(move |data, ctx| f(res, data, ctx));
-        f
-    })
-}
-
+trait MaybeSend: Send {}
+#[cfg(not(target_arch = "wasm32"))]
+impl<T: Send> MaybeSend for T {}
 #[cfg(target_arch = "wasm32")]
+trait MaybeSend {}
+#[cfg(target_arch = "wasm32")]
+impl<T> MaybeSend for T {}
+
 fn on_async<T, Fut, FN>(future: Fut, f: FN) -> BoxFuture<MsgFn>
 where
     T: 'static,
-    Fut: Future<Output = T> + 'static,
-    FN: FnOnce(T, &mut UiState, &mut Context) + 'static,
+    Fut: Future<Output = T> + MaybeSend + 'static,
+    FN: FnOnce(T, &mut UiState, &mut Context) + MaybeSend + 'static,
 {
     Box::pin(async {
         let res = future.await;
-        let f: MsgFn = Box::new(move |data, ctx| f(res, data, ctx));
-        f
+        Box::new(move |data: &mut UiState, ctx: &mut Context| f(res, data, ctx)) as MsgFn
     })
 }
 
@@ -87,6 +82,7 @@ enum Popup {
     #[default]
     None,
     OutputSelector,
+    #[cfg(desktop)]
     InputSelector,
 }
 
@@ -115,24 +111,19 @@ pub struct MenuScene {
 
     tracks_scroll: nuon::ScrollState,
     settings_scroll: nuon::ScrollState,
+    library_scroll: nuon::ScrollState,
     popup: Popup,
     audio_spinner_phase: f32,
 
     name_input: nuon::TextInputState,
     renaming_stored_name: Option<String>,
+
+    last_page: Page,
 }
 
-#[cfg(not(target_arch = "wasm32"))]
 fn cancel_pending_import(state: &mut UiState) {
     if let Some(pending) = state.pending_import.take() {
-        let _ = std::fs::remove_file(&pending.stored_path);
-    }
-}
-
-#[cfg(target_arch = "wasm32")]
-fn cancel_pending_import(state: &mut UiState) {
-    if let Some(pending) = state.pending_import.take() {
-        self::midi_picker::remove_web_midi(&pending.entry.stored_name);
+        pending.cancel();
     }
 }
 
@@ -156,10 +147,12 @@ impl MenuScene {
             nuon: nuon::Ui::new(),
             tracks_scroll: nuon::ScrollState::new(),
             settings_scroll: nuon::ScrollState::new(),
+            library_scroll: nuon::ScrollState::new(),
             popup: Popup::None,
             audio_spinner_phase: 0.0,
             name_input: nuon::TextInputState::new(),
             renaming_stored_name: None,
+            last_page: Page::Main,
         }
     }
 
@@ -185,12 +178,41 @@ impl MenuScene {
             return;
         }
 
+        let current = *self.state.current();
+        let entered_library = current == Page::Library && self.last_page != Page::Library;
+        #[cfg(target_os = "android")]
+        let (entered_name_entry, left_name_entry) = (
+            current == Page::NameEntry && self.last_page != Page::NameEntry,
+            current != Page::NameEntry && self.last_page == Page::NameEntry,
+        );
+        self.last_page = current;
+
+        #[cfg(target_os = "android")]
+        {
+            if entered_name_entry {
+                ctx.window.set_ime_allowed(true);
+                let win_w = ctx.window_state.logical_size.width;
+                let win_h = ctx.window_state.logical_size.height;
+                let panel_w = (win_w - 40.0).min(900.0);
+                ctx.window.set_ime_cursor_area(
+                    winit::dpi::LogicalPosition::new(
+                        ((win_w - panel_w) / 2.0 + 38.0) as f64,
+                        ((win_h - 300.0) / 2.0 + 120.0) as f64,
+                    ),
+                    winit::dpi::LogicalSize::new((panel_w - 76.0) as f64, 30.0_f64),
+                );
+            }
+            if left_name_entry {
+                ctx.window.set_ime_allowed(false);
+            }
+        }
+
         let mut nuon = std::mem::replace(&mut self.nuon, nuon::Ui::new());
 
-        match self.state.current() {
+        match current {
             Page::Main => self.main_page_ui(ctx, &mut nuon),
             Page::Settings => self.settings_page_ui(ctx, &mut nuon),
-            Page::Library => self.library_page_ui(ctx, &mut nuon),
+            Page::Library => self.library_page_ui(ctx, entered_library, &mut nuon),
             Page::AudioImport => self.audio_import_page_ui(ctx, &mut nuon),
             Page::NameEntry => self.name_entry_page_ui(ctx, &mut nuon),
             Page::TrackSelection => self.tracks_page_ui(ctx, &mut nuon),
@@ -204,11 +226,12 @@ impl MenuScene {
         let win_w = ctx.window_state.logical_size.width;
         let win_h = ctx.window_state.logical_size.height;
 
-        let panel_w = (win_w - 80.0).clamp(520.0, 760.0);
+        let ff = nuon::theme::FormFactor::from_logical_size(win_w, win_h);
+        let panel_w = (win_w - 40.0).min(760.0);
         let panel_h = 272.0;
         let button_gap = 12.0;
-        let button_w = ((panel_w - 120.0 - button_gap) / 2.0).clamp(188.0, 230.0);
-        let button_h = 68.0;
+        let button_w = ((panel_w - 64.0 - button_gap) / 2.0).min(230.0);
+        let button_h = if ff.is_phone() { 48.0 } else { 68.0 };
         let actions_w = button_w * 2.0 + button_gap;
 
         let song_name = self
@@ -329,13 +352,20 @@ impl MenuScene {
     fn main_page_ui(&mut self, ctx: &mut Context, ui: &mut nuon::Ui) {
         let win_w = ctx.window_state.logical_size.width;
         let win_h = ctx.window_state.logical_size.height;
+        let ff = nuon::theme::FormFactor::from_logical_size(win_w, win_h);
+        let m = ff.metrics();
+
+        if ff.is_phone() {
+            self.main_page_phone_ui(ctx, ui, win_w, win_h, &m);
+            return;
+        }
 
         let shell_w = (win_w - 80.0).clamp(760.0, 1060.0);
         let shell_h = (win_h - 88.0).clamp(520.0, 590.0);
         let left_w = (shell_w * 0.39).clamp(300.0, 380.0);
         let gap = 22.0;
         let right_w = shell_w - left_w - gap - 64.0;
-        let action_h = 66.0;
+        let action_h = m.btn_h;
 
         nuon::translate()
             .x(nuon::center_x(win_w, shell_w))
@@ -373,6 +403,11 @@ impl MenuScene {
 
                     let info_y = 136.0;
                     let info_h = 186.0;
+                    let card_clicked = nuon::click_area("song_info_card")
+                        .pos(0.0, info_y)
+                        .size(left_w, info_h)
+                        .build(ui)
+                        .is_clicked();
                     nuon::translate().y(info_y).build(ui, |ui| {
                         draw_card(
                             ui,
@@ -448,6 +483,10 @@ impl MenuScene {
                                 .build(ui);
                         }
                     });
+
+                    if card_clicked && self.state.song().is_none() {
+                        self.state.go_to(Page::Library);
+                    }
                 });
 
                 nuon::translate()
@@ -473,12 +512,12 @@ impl MenuScene {
                             .label("Import Audio")
                             .icon(icons::note_list_icon())
                             .meta("A")
-                            .subtitle(if cfg!(target_arch = "wasm32") {
+                            .subtitle(if cfg!(not(desktop)) {
                                 "Desktop only"
                             } else {
                                 ""
                             })
-                            .disabled(cfg!(target_arch = "wasm32"))
+                            .disabled(cfg!(not(desktop)))
                             .build(ui)
                         {
                             self.futures.push(open_audio_file_picker(&mut self.state));
@@ -528,7 +567,7 @@ impl MenuScene {
                             self.state.go_to(Page::Settings);
                         }
 
-                        #[cfg(not(target_arch = "wasm32"))]
+                        #[cfg(desktop)]
                         {
                             nuon::translate().y(action_h + 12.0).add_to_current(ui);
 
@@ -547,15 +586,106 @@ impl MenuScene {
             });
     }
 
-    fn library_page_ui(&mut self, ctx: &mut Context, ui: &mut nuon::Ui) {
+    fn main_page_phone_ui(
+        &mut self,
+        ctx: &mut Context,
+        ui: &mut nuon::Ui,
+        win_w: f32,
+        win_h: f32,
+        m: &nuon::theme::Metrics,
+    ) {
+        let pad = m.gutter;
+        let btn_w = win_w - pad * 2.0;
+        let btn_h = m.btn_h;
+        let gap = 8.0;
+
+        draw_card(
+            ui,
+            win_w,
+            win_h,
+            0.0,
+            nuon::theme::DIVIDER,
+            nuon::theme::PANEL,
+        );
+
+        let mut y = pad;
+
+        nuon::label()
+            .pos(pad, y)
+            .size(btn_w, m.title)
+            .font_size(m.title)
+            .bold(true)
+            .text("PianoPro")
+            .build(ui);
+        y += m.title + gap;
+
+        nuon::translate().pos(pad, y).build(ui, |ui| {
+            if neo_btn()
+                .size(btn_w, btn_h)
+                .label("Start")
+                .icon(icons::play_icon())
+                .primary()
+                .build(ui)
+            {
+                self.state.go_to(Page::Library);
+            }
+            nuon::translate().y(btn_h + gap).add_to_current(ui);
+
+            if let Some(last_song_path) = ctx.config.last_opened_song() {
+                if neo_btn()
+                    .size(btn_w, btn_h)
+                    .label("Continue")
+                    .icon(icons::play_circle_icon())
+                    .primary()
+                    .build(ui)
+                {
+                    if let Some(stored_name) = last_song_path.file_name().and_then(|n| n.to_str()) {
+                        self.futures
+                            .push(load_from_library(stored_name.to_string()));
+                    }
+                }
+                nuon::translate().y(btn_h + gap).add_to_current(ui);
+            }
+
+            if neo_btn()
+                .size(btn_w, btn_h)
+                .label("Free Play")
+                .icon(icons::balloon_icon())
+                .build(ui)
+            {
+                state::freeplay(&self.state, ctx);
+            }
+            nuon::translate().y(btn_h + gap).add_to_current(ui);
+
+            if neo_btn()
+                .size(btn_w, btn_h)
+                .label("Settings")
+                .icon(icons::gear_icon())
+                .build(ui)
+            {
+                self.state.go_to(Page::Settings);
+            }
+        });
+    }
+
+    fn library_page_ui(&mut self, ctx: &mut Context, _entered: bool, ui: &mut nuon::Ui) {
+        #[cfg(target_os = "android")]
+        if _entered {
+            scan_and_register_midi_files(ctx);
+        }
+
         let win_w = ctx.window_state.logical_size.width;
         let win_h = ctx.window_state.logical_size.height;
 
-        let panel_w = (win_w - 80.0).clamp(600.0, 900.0);
-        let panel_h = (win_h - 88.0).clamp(400.0, 700.0);
-        let button_h = 66.0;
+        let ff = nuon::theme::FormFactor::from_logical_size(win_w, win_h);
+        let panel_w = (win_w - 40.0).min(900.0);
+        let panel_h = (win_h - 40.0).min(700.0);
+        let button_h = if ff.is_phone() { 48.0 } else { 66.0 };
         let button_w = (panel_w - 64.0) / 2.0;
         let button_gap = 12.0;
+        let header_h = 110.0;
+        let footer_h = 100.0;
+        let list_h = (panel_h - header_h - footer_h).max(0.0);
 
         nuon::translate()
             .x(nuon::center_x(win_w, panel_w))
@@ -587,9 +717,14 @@ impl MenuScene {
                     .text("LIBRARY")
                     .build(ui);
 
-                let entries = ctx.config.library_entries();
+                let entries_snapshot: Vec<_> = ctx
+                    .config
+                    .library_entries()
+                    .iter()
+                    .map(|e| (e.stored_name.clone(), e.display_name.clone()))
+                    .collect();
 
-                if entries.is_empty() {
+                if entries_snapshot.is_empty() {
                     nuon::label()
                         .x(28.0)
                         .y(120.0)
@@ -600,11 +735,12 @@ impl MenuScene {
                         .text_justify(nuon::TextJustify::Center)
                         .size(panel_w - 56.0, 30.0)
                         .build(ui);
+
                     nuon::label()
                         .x(28.0)
                         .y(170.0)
                         .text("Import MIDI files to get started")
-                        .font_size(14.0)
+                        .font_size(13.0)
                         .color(nuon::theme::TEXT_MUTED)
                         .text_justify(nuon::TextJustify::Center)
                         .size(panel_w - 56.0, 20.0)
@@ -613,7 +749,7 @@ impl MenuScene {
                     nuon::label()
                         .x(28.0)
                         .y(70.0)
-                        .text(format!("{} piece(s) in library", entries.len()))
+                        .text(format!("{} piece(s) in library", entries_snapshot.len()))
                         .font_size(14.0)
                         .bold(true)
                         .color(nuon::theme::TEXT)
@@ -623,67 +759,48 @@ impl MenuScene {
 
                     let item_h = 50.0;
                     let item_gap = 8.0;
-                    let max_items = ((panel_h - 200.0) / (item_h + item_gap)) as usize;
+                    let btn_gap = 8.0;
+                    let edit_btn_w = 40.0;
+                    let title_btn_w = panel_w - 56.0 - btn_gap - edit_btn_w;
 
-                    // Clone entries to avoid borrow of ctx while building UI
-                    let entries_snapshot: Vec<_> = entries
-                        .iter()
-                        .map(|e| (e.stored_name.clone(), e.display_name.clone()))
-                        .collect();
-
-                    nuon::translate().pos(28.0, 110.0).build(ui, |ui| {
-                        let btn_gap = 8.0;
-                        let edit_btn_w = 40.0;
-                        let title_btn_w = panel_w - 56.0 - btn_gap - edit_btn_w;
-
-                        for (idx, (stored_name, display_name)) in
-                            entries_snapshot.iter().take(max_items).enumerate()
-                        {
-                            nuon::translate()
-                                .y((item_h + item_gap) * idx as f32)
-                                .build(ui, |ui| {
-                                    // Title button - load/play
-                                    if neo_btn()
-                                        .size(title_btn_w, item_h)
-                                        .label(display_name)
-                                        .build(ui)
-                                    {
-                                        self.futures.push(load_from_library(stored_name.clone()));
-                                    }
-
-                                    // Edit button
-                                    nuon::translate()
-                                        .x(title_btn_w + btn_gap)
-                                        .add_to_current(ui);
-
-                                    if neo_btn()
-                                        .id(nuon::Id::hash(stored_name))
-                                        .size(edit_btn_w, item_h)
-                                        .icon(icons::pencil_icon())
-                                        .centered()
-                                        .build(ui)
-                                    {
-                                        self.renaming_stored_name = Some(stored_name.clone());
-                                        self.name_input.set_value(display_name.clone());
-                                        self.state.go_to(Page::NameEntry);
-                                    }
-                                });
-                        }
-
-                        if entries_snapshot.len() > max_items {
-                            nuon::label()
-                                .x(0.0)
-                                .y((item_h + item_gap) * max_items as f32 + 10.0)
-                                .text(format!(
-                                    "... and {} more",
-                                    entries_snapshot.len() - max_items
-                                ))
-                                .font_size(12.0)
-                                .color(nuon::theme::TEXT_MUTED)
-                                .text_justify(nuon::TextJustify::Left)
-                                .size(panel_w - 56.0, 16.0)
-                                .build(ui);
-                        }
+                    nuon::translate().pos(28.0, header_h).build(ui, |ui| {
+                        self.library_scroll = nuon::scroll()
+                            .scissor_size(panel_w - 56.0, list_h)
+                            .scroll(self.library_scroll)
+                            .build(ui, |ui| {
+                                for (idx, (stored_name, display_name)) in
+                                    entries_snapshot.iter().enumerate()
+                                {
+                                    nuon::translate().y((item_h + item_gap) * idx as f32).build(
+                                        ui,
+                                        |ui| {
+                                            if neo_btn()
+                                                .size(title_btn_w, item_h)
+                                                .label(display_name)
+                                                .build(ui)
+                                            {
+                                                self.futures
+                                                    .push(load_from_library(stored_name.clone()));
+                                            }
+                                            nuon::translate()
+                                                .x(title_btn_w + btn_gap)
+                                                .add_to_current(ui);
+                                            if neo_btn()
+                                                .id(nuon::Id::hash(stored_name))
+                                                .size(edit_btn_w, item_h)
+                                                .icon(icons::pencil_icon())
+                                                .centered()
+                                                .build(ui)
+                                            {
+                                                self.renaming_stored_name =
+                                                    Some(stored_name.clone());
+                                                self.name_input.set_value(display_name.clone());
+                                                self.state.go_to(Page::NameEntry);
+                                            }
+                                        },
+                                    );
+                                }
+                            });
                     });
                 }
 
@@ -723,9 +840,10 @@ impl MenuScene {
         let win_w = ctx.window_state.logical_size.width;
         let win_h = ctx.window_state.logical_size.height;
 
-        let panel_w = (win_w - 80.0).clamp(600.0, 860.0);
-        let panel_h = 360.0;
-        let button_h = 66.0;
+        let ff = nuon::theme::FormFactor::from_logical_size(win_w, win_h);
+        let panel_w = (win_w - 40.0).min(860.0);
+        let panel_h = (win_h - 40.0).min(360.0);
+        let button_h = if ff.is_phone() { 48.0 } else { 66.0 };
         let button_w = (panel_w - 64.0) / 2.0;
         let button_gap = 12.0;
 
@@ -889,9 +1007,10 @@ impl MenuScene {
         let win_w = ctx.window_state.logical_size.width;
         let win_h = ctx.window_state.logical_size.height;
 
-        let panel_w = (win_w - 80.0).clamp(600.0, 900.0);
+        let ff = nuon::theme::FormFactor::from_logical_size(win_w, win_h);
+        let panel_w = (win_w - 40.0).min(900.0);
         let panel_h = 300.0;
-        let button_h = 66.0;
+        let button_h = if ff.is_phone() { 48.0 } else { 66.0 };
         let button_w = (panel_w - 64.0) / 2.0;
         let button_gap = 12.0;
 
@@ -1044,6 +1163,8 @@ impl Scene for MenuScene {
         self.quad_pipeline.clear();
         self.bg_pipeline.update_time(delta);
         self.audio_spinner_phase = (self.audio_spinner_phase + delta.as_secs_f32() * 8.0) % 4.0;
+        #[cfg(target_os = "android")]
+        process_pending_android_result(&mut self.state);
         self.state.tick(ctx);
 
         self.futures
@@ -1083,10 +1204,13 @@ impl Scene for MenuScene {
                     let y = y * 60.0;
                     self.settings_scroll.update(y);
                     self.tracks_scroll.update(y);
+                    self.library_scroll.update(y);
                 }
                 winit::event::MouseScrollDelta::PixelDelta(position) => {
-                    self.settings_scroll.update(position.y as f32);
-                    self.tracks_scroll.update(position.y as f32);
+                    let y = position.y as f32;
+                    self.settings_scroll.update(y);
+                    self.tracks_scroll.update(y);
+                    self.library_scroll.update(y);
                 }
             }
         }
@@ -1110,7 +1234,7 @@ impl Scene for MenuScene {
                     self.state.go_to(Page::Library);
                 }
 
-                #[cfg(not(target_arch = "wasm32"))]
+                #[cfg(desktop)]
                 if event.key_pressed(Key::Named(NamedKey::Escape)) {
                     ctx.proxy.send_event(NeothesiaEvent::Exit).ok();
                 }
@@ -1123,7 +1247,7 @@ impl Scene for MenuScene {
                     state::freeplay(&self.state, ctx);
                 }
 
-                #[cfg(not(target_arch = "wasm32"))]
+                #[cfg(desktop)]
                 if event.key_pressed(Key::Character("a")) {
                     self.futures.push(open_audio_file_picker(&mut self.state));
                 }
@@ -1213,6 +1337,13 @@ impl Scene for MenuScene {
                         }
                     }
                     _ => {}
+                }
+
+                #[cfg(target_os = "android")]
+                if let WindowEvent::Ime(winit::event::Ime::Commit(text)) = event {
+                    for c in text.chars().filter(|c| !c.is_control()) {
+                        self.name_input.insert_char(c);
+                    }
                 }
             }
             Page::TrackSelection => {

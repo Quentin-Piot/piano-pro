@@ -1,5 +1,72 @@
 use crate::Color;
 
+#[derive(Clone, Copy, Eq, PartialEq)]
+pub enum FormFactor {
+    Phone,
+    Tablet,
+    Desktop,
+}
+
+impl FormFactor {
+    pub fn from_logical_width(w: f32) -> Self {
+        match w {
+            w if w < 700.0 => Self::Phone,
+            w if w < 1100.0 => Self::Tablet,
+            _ => Self::Desktop,
+        }
+    }
+
+    pub fn from_logical_size(w: f32, h: f32) -> Self {
+        Self::from_logical_width(w.min(h))
+    }
+
+    pub fn metrics(self) -> Metrics {
+        match self {
+            Self::Phone => Metrics {
+                btn_h: 44.0,
+                btn_w: 120.0,
+                gutter: 12.0,
+                title: 20.0,
+                body: 14.0,
+                icon: 26.0,
+                touch: 44.0,
+            },
+            Self::Tablet => Metrics {
+                btn_h: 64.0,
+                btn_w: 160.0,
+                gutter: 16.0,
+                title: 26.0,
+                body: 16.0,
+                icon: 32.0,
+                touch: 48.0,
+            },
+            Self::Desktop => Metrics {
+                btn_h: 56.0,
+                btn_w: 180.0,
+                gutter: 20.0,
+                title: 28.0,
+                body: 16.0,
+                icon: 36.0,
+                touch: 32.0,
+            },
+        }
+    }
+
+    pub fn is_phone(self) -> bool {
+        matches!(self, Self::Phone)
+    }
+}
+
+pub struct Metrics {
+    pub btn_h: f32,
+    pub btn_w: f32,
+    pub gutter: f32,
+    pub title: f32,
+    pub body: f32,
+    pub icon: f32,
+    pub touch: f32,
+}
+
 pub const PANEL: Color = Color::new_u8(249, 251, 253, 0.98);
 pub const SURFACE: Color = Color::new_u8(255, 255, 255, 1.0);
 pub const SURFACE_ELEVATED: Color = Color::new_u8(248, 250, 252, 1.0);

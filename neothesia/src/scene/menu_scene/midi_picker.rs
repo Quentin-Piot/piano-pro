@@ -112,12 +112,21 @@ fn local_storage() -> Option<web_sys::Storage> {
 
 #[derive(Debug, Clone)]
 pub struct PendingImport {
-    #[cfg_attr(target_arch = "wasm32", allow(dead_code))]
+    #[cfg_attr(not(desktop), allow(dead_code))]
     pub stored_path: PathBuf,
     pub entry: MidiEntryV1,
 }
 
-#[cfg(not(target_arch = "wasm32"))]
+impl PendingImport {
+    pub(super) fn cancel(self) {
+        #[cfg(desktop)]
+        let _ = std::fs::remove_file(&self.stored_path);
+        #[cfg(target_arch = "wasm32")]
+        remove_web_midi(&self.entry.stored_name);
+    }
+}
+
+#[cfg(desktop)]
 pub fn open_midi_file_picker(data: &mut UiState) -> BoxFuture<MsgFn> {
     data.is_loading = true;
     on_async(open_midi_file_picker_fut(), |pending, data, ctx| {
@@ -127,6 +136,93 @@ pub fn open_midi_file_picker(data: &mut UiState) -> BoxFuture<MsgFn> {
         }
         data.is_loading = false;
     })
+}
+
+#[cfg(target_os = "android")]
+pub fn scan_and_register_midi_files(ctx: &mut crate::context::Context) {
+    use neothesia_core::config::MidiEntryV1;
+
+    let Some(midi_dir) = neothesia_core::utils::resources::midi_library_dir() else {
+        return;
+    };
+
+    let Ok(read_dir) = std::fs::read_dir(&midi_dir) else {
+        return;
+    };
+
+    let mut changed = false;
+    for entry in read_dir.flatten() {
+        let path = entry.path();
+        if path.extension().and_then(|e| e.to_str()) != Some("mid") {
+            continue;
+        }
+        let Some(file_name) = path.file_name().and_then(|n| n.to_str()) else {
+            continue;
+        };
+        let stored_name = file_name.to_string();
+        if ctx
+            .config
+            .library_entries()
+            .iter()
+            .any(|e| e.stored_name == stored_name)
+        {
+            continue;
+        }
+        let stem = path
+            .file_stem()
+            .and_then(|s| s.to_str())
+            .unwrap_or(&stored_name);
+        let display_name =
+            midi_file::extract_midi_metadata(&path).unwrap_or_else(|| stem.to_string());
+        ctx.config
+            .add_midi_to_library(MidiEntryV1::with_stored_name(display_name, stored_name));
+        changed = true;
+    }
+
+    if changed {
+        ctx.config.save();
+    }
+}
+
+#[cfg(target_os = "android")]
+fn apply_android_pick_result(result: crate::android_picker::PickResult, data: &mut UiState) {
+    let crate::android_picker::PickResult::File { name, bytes } = result else {
+        return;
+    };
+    if midi_file::MidiFile::from_bytes(&name, &bytes).is_err() {
+        return;
+    }
+    let Some(lib_dir) = neothesia_core::utils::resources::midi_library_dir() else {
+        return;
+    };
+    let stored_name = name.clone();
+    let stored_path = lib_dir.join(&stored_name);
+    if std::fs::write(&stored_path, &bytes).is_err() {
+        return;
+    }
+    let stem = std::path::Path::new(&name)
+        .file_stem()
+        .and_then(|s| s.to_str())
+        .unwrap_or("song");
+    let display_name = midi_file::extract_midi_metadata_from_bytes(&name, &bytes)
+        .unwrap_or_else(|| stem.to_string());
+    let entry = neothesia_core::config::MidiEntryV1::with_stored_name(display_name, stored_name);
+    data.pending_import = Some(PendingImport { stored_path, entry });
+}
+
+#[cfg(target_os = "android")]
+pub fn process_pending_android_result(data: &mut UiState) {
+    if let Some(result) = crate::android_picker::poll() {
+        data.is_loading = false;
+        apply_android_pick_result(result, data);
+    }
+}
+
+#[cfg(target_os = "android")]
+pub fn open_midi_file_picker(data: &mut UiState) -> BoxFuture<MsgFn> {
+    data.is_loading = true;
+    crate::android_picker::launch();
+    Box::pin(std::future::pending())
 }
 
 #[cfg(target_arch = "wasm32")]
@@ -190,18 +286,22 @@ pub fn load_from_library(stored_name: String) -> BoxFuture<MsgFn> {
 async fn load_from_library_fut(stored_name: String) -> Option<(midi_file::MidiFile, PathBuf)> {
     let lib_dir = neothesia_core::utils::resources::midi_library_dir()?;
     let file_path = lib_dir.join(&stored_name);
-
-    let thread = crate::utils::task::thread::spawn("midi-loader".into(), move || {
-        let midi = midi_file::MidiFile::new(&file_path);
-
-        if let Err(e) = &midi {
-            log::error!("{e}");
-        }
-
-        midi.ok().map(|midi| (midi, file_path))
-    });
-
-    thread.join().await.ok().flatten()
+    #[cfg(desktop)]
+    {
+        let thread = crate::utils::task::thread::spawn("midi-loader".into(), move || {
+            let midi = midi_file::MidiFile::new(&file_path);
+            if let Err(e) = &midi {
+                log::error!("{e}");
+            }
+            midi.ok().map(|midi| (midi, file_path))
+        });
+        thread.join().await.ok().flatten()
+    }
+    #[cfg(not(desktop))]
+    {
+        let midi = midi_file::MidiFile::new(&file_path).ok()?;
+        Some((midi, file_path))
+    }
 }
 
 #[cfg(target_arch = "wasm32")]
@@ -211,7 +311,7 @@ async fn load_from_library_fut(stored_name: String) -> Option<(midi_file::MidiFi
     Some((midi, PathBuf::from(&stored_name)))
 }
 
-#[cfg(not(target_arch = "wasm32"))]
+#[cfg(desktop)]
 async fn open_midi_file_picker_fut() -> Option<PendingImport> {
     let file = rfd::AsyncFileDialog::new()
         .add_filter("midi", &["mid", "midi"])

@@ -97,7 +97,7 @@ pub fn convert_selected_audio(data: &mut UiState) -> Option<BoxFuture<MsgFn>> {
     ))
 }
 
-#[cfg(not(target_arch = "wasm32"))]
+#[cfg(desktop)]
 async fn open_audio_file_picker_fut() -> Option<PathBuf> {
     let file = rfd::AsyncFileDialog::new()
         .add_filter("audio", &["wav", "mp3"])
@@ -113,12 +113,12 @@ async fn open_audio_file_picker_fut() -> Option<PathBuf> {
     }
 }
 
-#[cfg(target_arch = "wasm32")]
+#[cfg(not(desktop))]
 async fn open_audio_file_picker_fut() -> Option<PathBuf> {
     None
 }
 
-#[cfg(not(target_arch = "wasm32"))]
+#[cfg(desktop)]
 async fn convert_audio_file_fut(path: PathBuf) -> Result<ConvertedAudioImport, String> {
     let thread = crate::utils::task::thread::spawn("audio-import".into(), move || {
         let file_stem = path
@@ -169,7 +169,7 @@ async fn convert_audio_file_fut(path: PathBuf) -> Result<ConvertedAudioImport, S
         .map_err(|_| "Audio import worker panicked".to_string())?
 }
 
-#[cfg(target_arch = "wasm32")]
+#[cfg(not(desktop))]
 async fn convert_audio_file_fut(_path: PathBuf) -> Result<ConvertedAudioImport, String> {
-    Err("Audio import is not available on web".to_string())
+    Err("Audio import is not available on this platform".to_string())
 }

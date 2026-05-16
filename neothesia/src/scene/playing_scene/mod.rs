@@ -3,8 +3,10 @@ use neothesia_core::render::{
     GlowRenderer, GuidelineRenderer, NoteLabels, QuadRenderer, TextRenderer,
 };
 use std::time::Duration;
+use web_time::Instant;
 use winit::{
-    event::WindowEvent,
+    dpi::LogicalPosition,
+    event::{TouchPhase, WindowEvent},
     keyboard::{Key, NamedKey},
 };
 
@@ -31,6 +33,21 @@ use toast_manager::ToastManager;
 mod animation;
 mod top_bar;
 
+pub(super) enum GesturePhase {
+    Idle,
+    Tracking {
+        start_x: f32,
+        start_y: f32,
+        start_pct: f32,
+        started_at: Instant,
+    },
+    Seeking {
+        origin_x: f32,
+        start_pct: f32,
+        current_pct: f32,
+    },
+}
+
 pub struct PlayingScene {
     keyboard: Keyboard,
     waterfall: WaterfallRenderer,
@@ -51,6 +68,7 @@ pub struct PlayingScene {
     mouse_to_midi_state: MouseToMidiEventState,
 
     top_bar: TopBar,
+    pub(super) gesture: GesturePhase,
 }
 
 impl PlayingScene {
@@ -128,6 +146,7 @@ impl PlayingScene {
             mouse_to_midi_state: MouseToMidiEventState::default(),
 
             top_bar: TopBar::new(),
+            gesture: GesturePhase::Idle,
         }
     }
 
@@ -367,6 +386,89 @@ impl Scene for PlayingScene {
             .play_along_mut()
             .midi_event(midi_player::MidiEventSource::User, message);
         self.keyboard.user_midi_event(message);
+    }
+
+    fn touch_event(
+        &mut self,
+        ctx: &mut Context,
+        phase: TouchPhase,
+        pos: LogicalPosition<f32>,
+    ) -> bool {
+        let win_w = ctx.window_state.logical_size.width;
+        let safe_top = ctx.window_state.safe_area_top;
+        let keyboard_y = self.keyboard.pos().y;
+        let in_canvas = pos.y > safe_top + 75.0
+            && pos.y < keyboard_y
+            && !self.top_bar.settings_active;
+
+        match phase {
+            TouchPhase::Started => {
+                if in_canvas {
+                    self.gesture = GesturePhase::Tracking {
+                        start_x: pos.x,
+                        start_y: pos.y,
+                        start_pct: self.player.percentage(),
+                        started_at: Instant::now(),
+                    };
+                }
+                false
+            }
+            TouchPhase::Moved => match self.gesture {
+                GesturePhase::Tracking {
+                    start_x,
+                    start_pct,
+                    ..
+                } => {
+                    let dx = pos.x - start_x;
+                    if dx.abs() > 15.0 {
+                        let new_pct = (start_pct + dx / win_w).clamp(0.0, 1.0);
+                        self.player.set_percentage_time(new_pct);
+                        self.keyboard.reset_notes();
+                        self.gesture = GesturePhase::Seeking {
+                            origin_x: start_x,
+                            start_pct,
+                            current_pct: new_pct,
+                        };
+                        true
+                    } else {
+                        false
+                    }
+                }
+                GesturePhase::Seeking {
+                    origin_x,
+                    start_pct,
+                    ref mut current_pct,
+                } => {
+                    let new_pct = (start_pct + (pos.x - origin_x) / win_w).clamp(0.0, 1.0);
+                    self.player.set_percentage_time(new_pct);
+                    self.keyboard.reset_notes();
+                    *current_pct = new_pct;
+                    true
+                }
+                GesturePhase::Idle => false,
+            },
+            TouchPhase::Ended | TouchPhase::Cancelled => {
+                let was_seeking = matches!(self.gesture, GesturePhase::Seeking { .. });
+
+                if let GesturePhase::Tracking {
+                    started_at,
+                    start_x,
+                    start_y,
+                    ..
+                } = self.gesture
+                {
+                    let dt = started_at.elapsed().as_millis();
+                    let dx = (pos.x - start_x).abs();
+                    let dy = (pos.y - start_y).abs();
+                    if dt < 350 && dx < 20.0 && dy < 20.0 {
+                        self.player.pause_resume();
+                    }
+                }
+
+                self.gesture = GesturePhase::Idle;
+                was_seeking
+            }
+        }
     }
 }
 

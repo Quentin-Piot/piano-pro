@@ -23,7 +23,6 @@ wgpu-jumpstart.workspace = true
 neothesia-core.workspace = true
 neothesia-image.workspace = true
 midi-file.workspace = true
-midi-io.workspace = true
 nuon.workspace = true
 futures-channel.workspace = true
 cosmic-text.workspace = true
@@ -32,7 +31,6 @@ web-time.workspace = true
 bytes.workspace = true
 lilt.workspace = true
 winit.workspace = true
-rfd.workspace = true
 piano-layout.workspace = true
 
 oxisynth = { workspace = true, optional = true }
@@ -42,17 +40,29 @@ serde_json.workspace = true
 profiling.workspace = true
 puffin.workspace = true
 
-# Desktop-only dependencies
-[target.'cfg(not(target_arch = "wasm32"))'.dependencies]
+[target.'cfg(desktop)'.dependencies]
 pollster.workspace = true
 env_logger.workspace = true
 neothesia-ai.workspace = true
 puffin_http.workspace = true
-cpal = { workspace = true, optional = true }
 fluidlite = { workspace = true, optional = true }
+midi-io.workspace = true
+
+[target.'cfg(not(target_arch = "wasm32"))'.dependencies]
+cpal = { workspace = true, optional = true }
+
+[target.'cfg(not(target_os = "android"))'.dependencies]
+rfd.workspace = true
 
 [target.'cfg(target_arch = "wasm32")'.dependencies]
 web-sys = { workspace = true, features = ["Storage", "Window"] }
+
+[target.'cfg(target_os = "android")'.dependencies]
+android-activity.workspace = true
+android_logger.workspace = true
+
+[lints]
+workspace = true
 
 [[bin]]
 name = "neothesia"

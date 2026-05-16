@@ -1,0 +1,31 @@
+# Android Studio
+.idea/
+*.iml
+*.ipr
+
+# Gradle
+.gradle/
+build/
+
+# Local configuration
+local.properties
+app/local.properties
+
+# Keystores
+*.jks
+*.keystore
+
+# Native libraries (built)
+app/src/main/jniLibs/
+
+# Logs
+*.log
+
+# Cache
+.cache/
+
+# Mac
+.DS_Store
+
+# Windows
+Thumbs.db

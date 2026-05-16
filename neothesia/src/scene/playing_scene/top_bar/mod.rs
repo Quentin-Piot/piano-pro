@@ -79,10 +79,11 @@ impl TopBar {
     pub fn ui(this: &mut PlayingScene, ctx: &mut Context) {
         let mut ui = std::mem::replace(&mut this.nuon, nuon::Ui::new());
 
+        let safe_top = ctx.window_state.safe_area_top;
         nuon::translate()
             .y(this.top_bar.topbar_expand_animation.animate_bool(
                 -75.0 + 5.0,
-                0.0,
+                safe_top,
                 ctx.frame_timestamp,
             ))
             .build(&mut ui, |ui| {
@@ -229,13 +230,16 @@ impl TopBar {
     fn settings_panel(this: &mut PlayingScene, ctx: &mut Context, ui: &mut nuon::Ui) {
         let win_w = ctx.window_state.logical_size.width;
         let win_h = ctx.window_state.logical_size.height;
+        let safe_top = ctx.window_state.safe_area_top;
 
-        const PADDING: f32 = 28.0;
-        const ROW_H: f32 = 68.0;
-        const ROW_GAP: f32 = 10.0;
-        const CHIP_SIZE: f32 = 36.0;
-        const PILL_W: f32 = 54.0;
-        const PILL_H: f32 = 30.0;
+        let ff = nuon::theme::FormFactor::from_logical_size(win_w, win_h);
+        let is_phone = ff.is_phone();
+
+        let (padding, row_h, row_gap, chip_size, pill_w, pill_h, close_h) = if is_phone {
+            (16.0_f32, 54.0_f32, 8.0_f32, 28.0_f32, 48.0_f32, 26.0_f32, 44.0_f32)
+        } else {
+            (28.0_f32, 68.0_f32, 10.0_f32, 36.0_f32, 54.0_f32, 30.0_f32, 52.0_f32)
+        };
 
         // Pre-compute all data from song BEFORE any closures to avoid borrow conflicts.
         let file_tracks = this.player.song().file.tracks.clone();
@@ -249,19 +253,24 @@ impl TopBar {
         let track_count = track_ids.len();
         let color_schema = ctx.config.color_schema().to_vec();
 
-        // Panel sizing
-        let panel_w = (win_w - 64.0).clamp(440.0, 580.0);
-        let header_h = 116.0;
+        let header_h = if is_phone { 90.0 } else { 116.0 };
         let rows_h = if track_count == 0 {
             0.0
         } else {
-            track_count as f32 * (ROW_H + ROW_GAP) - ROW_GAP
+            track_count as f32 * (row_h + row_gap) - row_gap
         };
-        let close_h = 52.0;
-        let ideal_h = PADDING + header_h + rows_h + PADDING + close_h + PADDING;
-        let panel_h = ideal_h.min(win_h * 0.82);
-        let panel_x = nuon::center_x(win_w, panel_w).max(0.0);
-        let panel_y = nuon::center_y(win_h, panel_h).max(75.0);
+        let ideal_h = padding + header_h + rows_h + padding + close_h + padding;
+
+        let (panel_w, panel_h, panel_x, panel_y, border_r) = if is_phone {
+            let top = safe_top + 75.0;
+            (win_w, win_h - top, 0.0, top, 0.0_f32)
+        } else {
+            let pw = (win_w - 64.0).clamp(440.0, 580.0);
+            let ph = ideal_h.min(win_h * 0.82);
+            let px = nuon::center_x(win_w, pw).max(0.0);
+            let py = nuon::center_y(win_h, ph).max(safe_top + 75.0);
+            (pw, ph, px, py, 28.0_f32)
+        };
 
         #[derive(Debug)]
         enum Ev {
@@ -272,28 +281,29 @@ impl TopBar {
         let mut events: Vec<Ev> = Vec::new();
 
         nuon::layer().overlay(true).build(ui, |ui| {
-            // Backdrop
-            nuon::quad()
-                .size(win_w, win_h)
-                .color(nuon::Color::new(0.0, 0.0, 0.0, 0.45))
-                .build(ui);
+            if !is_phone {
+                nuon::quad()
+                    .size(win_w, win_h)
+                    .color(nuon::Color::new(0.0, 0.0, 0.0, 0.45))
+                    .build(ui);
+            }
 
             nuon::translate().pos(panel_x, panel_y).build(ui, |ui| {
-                // Panel: border + fill (draw_card style)
+                // Panel: border + fill
                 nuon::quad()
                     .size(panel_w, panel_h)
                     .color(nuon::theme::DIVIDER)
-                    .border_radius([28.0; 4])
+                    .border_radius([border_r; 4])
                     .build(ui);
                 nuon::quad()
                     .pos(1.0, 1.0)
                     .size(panel_w - 2.0, panel_h - 2.0)
                     .color(nuon::theme::PANEL)
-                    .border_radius([27.0; 4])
+                    .border_radius([(border_r - 1.0).max(0.0); 4])
                     .build(ui);
 
                 // Header
-                nuon::translate().pos(PADDING, PADDING).build(ui, |ui| {
+                nuon::translate().pos(padding, padding).build(ui, |ui| {
                     nuon::quad()
                         .size(74.0, 24.0)
                         .color(nuon::theme::PRIMARY_SOFT)
@@ -308,40 +318,42 @@ impl TopBar {
                         .build(ui);
 
                     nuon::label()
-                        .y(36.0)
+                        .y(if is_phone { 30.0 } else { 36.0 })
                         .text("Track Controls")
-                        .size(panel_w - PADDING * 2.0, 38.0)
-                        .font_size(28.0)
+                        .size(panel_w - padding * 2.0, 34.0)
+                        .font_size(if is_phone { 22.0 } else { 28.0 })
                         .bold(true)
                         .text_justify(nuon::TextJustify::Left)
                         .build(ui);
 
-                    nuon::label()
-                        .y(80.0)
-                        .text(format!(
-                            "{} active track{}",
-                            track_count,
-                            if track_count == 1 { "" } else { "s" }
-                        ))
-                        .size(panel_w - PADDING * 2.0, 20.0)
-                        .font_size(13.0)
-                        .color(nuon::theme::TEXT_MUTED)
-                        .text_justify(nuon::TextJustify::Left)
-                        .build(ui);
+                    if !is_phone {
+                        nuon::label()
+                            .y(80.0)
+                            .text(format!(
+                                "{} active track{}",
+                                track_count,
+                                if track_count == 1 { "" } else { "s" }
+                            ))
+                            .size(panel_w - padding * 2.0, 20.0)
+                            .font_size(13.0)
+                            .color(nuon::theme::TEXT_MUTED)
+                            .text_justify(nuon::TextJustify::Left)
+                            .build(ui);
+                    }
                 });
 
                 // Scrollable track rows
-                let rows_area_h = panel_h - PADDING - header_h - PADDING - close_h - PADDING;
+                let rows_area_h = panel_h - padding - header_h - padding - close_h - padding;
 
-                nuon::translate().y(PADDING + header_h).build(ui, |ui| {
+                nuon::translate().y(padding + header_h).build(ui, |ui| {
                     let scroll_state = this.top_bar.tracks_scroll;
                     let new_scroll = nuon::scroll()
                         .scissor_size(panel_w, rows_area_h)
                         .scroll(scroll_state)
                         .build(ui, |ui| {
                             for (i, &track_id) in track_ids.iter().enumerate() {
-                                nuon::translate().x(PADDING).build(ui, |ui| {
-                                    let row_w = panel_w - PADDING * 2.0;
+                                nuon::translate().x(padding).build(ui, |ui| {
+                                    let row_w = panel_w - padding * 2.0;
                                     let config = &track_configs[track_id];
                                     let track = &file_tracks[track_id];
 
@@ -362,27 +374,27 @@ impl TopBar {
 
                                     // Row: border + fill
                                     nuon::quad()
-                                        .size(row_w, ROW_H)
+                                        .size(row_w, row_h)
                                         .color(nuon::theme::DIVIDER)
                                         .border_radius([18.0; 4])
                                         .build(ui);
                                     nuon::quad()
                                         .pos(1.0, 1.0)
-                                        .size(row_w - 2.0, ROW_H - 2.0)
+                                        .size(row_w - 2.0, row_h - 2.0)
                                         .color(nuon::theme::SURFACE)
                                         .border_radius([17.0; 4])
                                         .build(ui);
 
                                     // Color chip (visibility toggle)
                                     let chip_x = 14.0;
-                                    let chip_y = nuon::center_y(ROW_H, CHIP_SIZE);
+                                    let chip_y = nuon::center_y(row_h, chip_size);
 
                                     let vis_ev = nuon::click_area(nuon::Id::hash_with(|h| {
                                         "svis".hash(h);
                                         i.hash(h);
                                     }))
                                     .pos(chip_x, chip_y)
-                                    .size(CHIP_SIZE, CHIP_SIZE)
+                                    .size(chip_size, chip_size)
                                     .build(ui);
 
                                     let drawn_chip = if vis_ev.is_hovered() || vis_ev.is_pressed() {
@@ -393,14 +405,14 @@ impl TopBar {
 
                                     nuon::quad()
                                         .pos(chip_x, chip_y)
-                                        .size(CHIP_SIZE, CHIP_SIZE)
+                                        .size(chip_size, chip_size)
                                         .color(drawn_chip)
-                                        .border_radius([CHIP_SIZE / 2.0; 4])
+                                        .border_radius([chip_size / 2.0; 4])
                                         .build(ui);
                                     nuon::label()
                                         .pos(chip_x, chip_y)
-                                        .size(CHIP_SIZE, CHIP_SIZE)
-                                        .font_size(CHIP_SIZE * 0.42)
+                                        .size(chip_size, chip_size)
+                                        .font_size(chip_size * 0.42)
                                         .color(nuon::Color::WHITE)
                                         .icon(icons::note_list_icon())
                                         .build(ui);
@@ -410,9 +422,9 @@ impl TopBar {
                                     }
 
                                     // Pill buttons: Mute / Auto / Human
-                                    let pills_w = PILL_W * 3.0;
+                                    let pills_w = pill_w * 3.0;
                                     let pill_x = row_w - pills_w - 14.0;
-                                    let pill_y = nuon::center_y(ROW_H, PILL_H);
+                                    let pill_y = nuon::center_y(row_h, pill_h);
 
                                     let reg = nuon::theme::SURFACE_ELEVATED;
                                     let reg_h = nuon::theme::SURFACE_HOVER;
@@ -421,20 +433,20 @@ impl TopBar {
                                         (
                                             PlayerConfig::Mute,
                                             "Mute",
-                                            [PILL_H / 2.0, 0.0, 0.0, PILL_H / 2.0],
+                                            [pill_h / 2.0, 0.0, 0.0, pill_h / 2.0],
                                         ),
                                         (PlayerConfig::Auto, "Auto", [0.0; 4]),
                                         (
                                             PlayerConfig::Human,
                                             "Human",
-                                            [0.0, PILL_H / 2.0, PILL_H / 2.0, 0.0],
+                                            [0.0, pill_h / 2.0, pill_h / 2.0, 0.0],
                                         ),
                                     ];
 
                                     for (idx, (mode, label, radius)) in
                                         pill_configs.iter().enumerate()
                                     {
-                                        let px = pill_x + idx as f32 * PILL_W;
+                                        let px = pill_x + idx as f32 * pill_w;
                                         let active = config.player == *mode;
                                         let pill_ev = nuon::click_area(nuon::Id::hash_with(|h| {
                                             "spill".hash(h);
@@ -442,7 +454,7 @@ impl TopBar {
                                             idx.hash(h);
                                         }))
                                         .pos(px, pill_y)
-                                        .size(PILL_W, PILL_H)
+                                        .size(pill_w, pill_h)
                                         .build(ui);
 
                                         let bg = if active {
@@ -459,7 +471,7 @@ impl TopBar {
 
                                         nuon::quad()
                                             .pos(px, pill_y)
-                                            .size(PILL_W, PILL_H)
+                                            .size(pill_w, pill_h)
                                             .color(bg)
                                             .border_radius(*radius)
                                             .build(ui);
@@ -472,7 +484,7 @@ impl TopBar {
 
                                         nuon::label()
                                             .pos(px, pill_y)
-                                            .size(PILL_W, PILL_H)
+                                            .size(pill_w, pill_h)
                                             .font_size(11.0)
                                             .bold(true)
                                             .color(text_color)
@@ -485,7 +497,7 @@ impl TopBar {
                                     }
 
                                     // Track title + subtitle
-                                    let text_x = chip_x + CHIP_SIZE + 12.0;
+                                    let text_x = chip_x + chip_size + 12.0;
                                     let text_w = (pill_x - text_x - 10.0).max(40.0);
 
                                     let title = if track.has_drums && !track.has_other_than_drums {
@@ -500,7 +512,7 @@ impl TopBar {
                                     };
 
                                     nuon::label()
-                                        .pos(text_x, nuon::center_y(ROW_H, 38.0))
+                                        .pos(text_x, nuon::center_y(row_h, 38.0))
                                         .size(text_w, 20.0)
                                         .font_size(15.0)
                                         .bold(true)
@@ -510,7 +522,7 @@ impl TopBar {
                                         .build(ui);
 
                                     nuon::label()
-                                        .pos(text_x, nuon::center_y(ROW_H, 38.0) + 22.0)
+                                        .pos(text_x, nuon::center_y(row_h, 38.0) + 22.0)
                                         .size(text_w, 16.0)
                                         .font_size(11.5)
                                         .text_justify(nuon::TextJustify::Left)
@@ -519,17 +531,17 @@ impl TopBar {
                                         .build(ui);
                                 });
 
-                                nuon::translate().y(ROW_H + ROW_GAP).add_to_current(ui);
+                                nuon::translate().y(row_h + row_gap).add_to_current(ui);
                             }
                         });
                     this.top_bar.tracks_scroll = new_scroll;
                 });
 
-                // Close button (draw_card style, secondary)
-                let close_y = panel_h - PADDING - close_h;
-                let close_w = panel_w - PADDING * 2.0;
+                // Close button
+                let close_y = panel_h - padding - close_h;
+                let close_w = panel_w - padding * 2.0;
 
-                nuon::translate().pos(PADDING, close_y).build(ui, |ui| {
+                nuon::translate().pos(padding, close_y).build(ui, |ui| {
                     let close_ev = nuon::click_area("settings_close")
                         .size(close_w, close_h)
                         .build(ui);
@@ -638,6 +650,37 @@ impl TopBar {
         Self::proggress_bar_bg(this, ctx, ui, w, h);
 
         render_looper(ui);
+
+        if let super::GesturePhase::Seeking { current_pct, .. } = this.gesture {
+            let seek_x = current_pct * w;
+            let length_secs = this.player.length().as_secs_f32();
+            let secs_total = (current_pct * length_secs) as u32;
+            let label = format!("{}:{:02}", secs_total / 60, secs_total % 60);
+            let badge_w = 48.0;
+            let badge_x = (seek_x - badge_w / 2.0).clamp(0.0, w - badge_w);
+
+            nuon::quad()
+                .x(badge_x)
+                .y(-20.0)
+                .size(badge_w, 16.0)
+                .color(nuon::theme::PRIMARY)
+                .border_radius([4.0; 4])
+                .build(ui);
+            nuon::label()
+                .x(badge_x)
+                .y(-20.0)
+                .size(badge_w, 16.0)
+                .font_size(10.0)
+                .bold(true)
+                .color(nuon::Color::WHITE)
+                .text(label)
+                .build(ui);
+            nuon::quad()
+                .x(seek_x - 1.5)
+                .size(3.0, h)
+                .color(nuon::Color::WHITE)
+                .build(ui);
+        }
     }
 
     fn proggress_bar_bg(
