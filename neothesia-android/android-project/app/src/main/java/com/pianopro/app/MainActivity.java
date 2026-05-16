@@ -6,6 +6,7 @@ import android.content.Intent;
 import android.database.Cursor;
 import android.net.Uri;
 import android.provider.OpenableColumns;
+import android.util.Log;
 import android.view.WindowManager;
 
 import java.io.ByteArrayOutputStream;
@@ -65,6 +66,7 @@ public class MainActivity extends NativeActivity {
             stream.close();
             onMidiPickResult(bytes, name);
         } catch (Exception e) {
+            Log.e("PianoPro", "Failed to read MIDI stream", e);
             onMidiPickResult(null, null);
         }
     }

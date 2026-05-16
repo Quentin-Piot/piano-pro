@@ -60,16 +60,6 @@ mod inner {
     }
 
     #[unsafe(no_mangle)]
-    pub unsafe extern "system" fn Java_com_pianopro_app_MainActivity_onMidiPickResult(
-        raw_env: *mut jni::sys::JNIEnv,
-        obj: jni::sys::jobject,
-        bytes: jni::sys::jbyteArray,
-        name: jni::sys::jstring,
-    ) {
-        unsafe { on_midi_pick_result_impl(raw_env, obj, bytes, name) };
-    }
-
-    #[unsafe(no_mangle)]
     pub unsafe extern "system" fn JNI_OnLoad(
         raw_vm: *mut jni::sys::JavaVM,
         _reserved: *mut std::ffi::c_void,
@@ -83,8 +73,7 @@ mod inner {
             let methods = [jni::NativeMethod {
                 name: "onMidiPickResult".into(),
                 sig: "([BLjava/lang/String;)V".into(),
-                fn_ptr: Java_com_pianopro_app_MainActivity_onMidiPickResult
-                    as *mut std::ffi::c_void,
+                fn_ptr: on_midi_pick_result_impl as *mut std::ffi::c_void,
             }];
             env.register_native_methods(&class, &methods).ok()
         })();

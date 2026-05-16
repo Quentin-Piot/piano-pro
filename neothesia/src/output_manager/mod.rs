@@ -243,4 +243,31 @@ impl OutputManager {
     pub fn connection(&self) -> &OutputConnection {
         &self.output_connection.1
     }
+
+    pub fn needs_reconnect(&self) -> bool {
+        #[cfg(all(feature = "synth", not(target_arch = "wasm32")))]
+        if let Some(synth) = &self.synth_backend {
+            return synth.needs_reconnect();
+        }
+        false
+    }
+
+    pub fn reconnect_synth(&mut self, soundfont: Option<PathBuf>, gain: f32) {
+        self.output_connection = (OutputDescriptor::DummyOutput, OutputConnection::DummyOutput);
+        #[cfg(all(feature = "synth", not(target_arch = "wasm32")))]
+        {
+            self.synth_backend = match SynthBackend::new() {
+                Ok(b) => Some(b),
+                Err(e) => {
+                    log::error!("{e:?}");
+                    None
+                }
+            };
+        }
+        #[cfg(feature = "synth")]
+        {
+            self.connect(OutputDescriptor::Synth(soundfont));
+            self.connection().set_gain(gain);
+        }
+    }
 }

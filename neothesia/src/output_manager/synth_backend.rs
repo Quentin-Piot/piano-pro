@@ -1,4 +1,13 @@
-use std::{error::Error, path::Path, rc::Rc, sync::mpsc::Receiver};
+use std::{
+    error::Error,
+    path::Path,
+    rc::Rc,
+    sync::{
+        Arc,
+        atomic::{AtomicBool, Ordering},
+        mpsc::Receiver,
+    },
+};
 
 use crate::output_manager::OutputDescriptor;
 
@@ -15,6 +24,7 @@ pub struct SynthBackend {
     stream_config: cpal::StreamConfig,
     sample_format: cpal::SampleFormat,
     gain: f32,
+    device_lost: Arc<AtomicBool>,
 }
 
 impl SynthBackend {
@@ -36,8 +46,13 @@ impl SynthBackend {
 
             stream_config,
             sample_format,
-            gain: 0.2,
+            gain: 1.0,
+            device_lost: Arc::new(AtomicBool::new(false)),
         })
+    }
+
+    pub fn needs_reconnect(&self) -> bool {
+        self.device_lost.load(Ordering::Relaxed)
     }
 
     fn run<T: cpal::SizedSample + cpal::FromSample<f32>>(
@@ -51,7 +66,13 @@ impl SynthBackend {
         #[cfg(all(feature = "oxi-synth", not(feature = "fluid-synth")))]
         let mut next_value = oxisynth_adapter(self, rx, path, self.gain);
 
-        let err_fn = |err| eprintln!("an error occurred on stream: {err}");
+        let device_lost = Arc::clone(&self.device_lost);
+        let err_fn = move |err: cpal::StreamError| {
+            log::error!("Audio stream error: {err}");
+            if matches!(err, cpal::StreamError::DeviceNotAvailable) {
+                device_lost.store(true, Ordering::Relaxed);
+            }
+        };
 
         let channels = self.stream_config.channels as usize;
 

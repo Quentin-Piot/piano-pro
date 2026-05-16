@@ -31,8 +31,16 @@ build-android:
 		build -p neothesia-android --release
 	cd $(ANDROID_PROJECT) && ./gradlew assembleDebug
 
+clean-android:
+	cd $(ANDROID_PROJECT) && ./gradlew clean
+	cargo clean -p neothesia-android
+	rm -rf $(ANDROID_JNI_DIR)/arm64-v8a/libneothesia_android.so
+	rm -rf $(ANDROID_JNI_DIR)/armeabi-v7a/libneothesia_android.so
+
 install-android:
 	cd $(ANDROID_PROJECT) && ./gradlew installDebug
 
 run-android:
 	adb shell am start -n com.pianopro.app/android.app.NativeActivity
+
+.PHONY: check-android build-android clean-android install-android run-android

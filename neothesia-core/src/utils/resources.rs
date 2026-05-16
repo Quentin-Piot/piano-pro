@@ -44,17 +44,20 @@ fn xdg_config() -> Option<PathBuf> {
 }
 
 #[cfg(not(target_arch = "wasm32"))]
+#[allow(dead_code)] // Used transitively via dev_resource_path() in default_sf2() for desktop builds
 fn file_name(name: &str, extension: &str) -> String {
     format!("{name}.{extension}")
 }
 
 #[cfg(not(target_arch = "wasm32"))]
+#[allow(dead_code)] // Used transitively by file_name() and default_sf2() for desktop builds
 fn existing_resource_path(base: &Path, file_name: &str) -> Option<PathBuf> {
     let path = base.join(file_name);
     path.exists().then_some(path)
 }
 
 #[cfg(not(target_arch = "wasm32"))]
+#[allow(dead_code)] // Used transitively by default_sf2() for desktop builds
 fn dev_resource_path(name: &str, extension: &str) -> Option<PathBuf> {
     let file_name = file_name(name, extension);
 

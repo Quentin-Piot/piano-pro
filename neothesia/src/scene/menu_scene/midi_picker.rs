@@ -112,9 +112,18 @@ fn local_storage() -> Option<web_sys::Storage> {
 
 #[derive(Debug, Clone)]
 pub struct PendingImport {
-    #[cfg_attr(target_arch = "wasm32", allow(dead_code))]
+    #[cfg_attr(not(desktop), allow(dead_code))]
     pub stored_path: PathBuf,
     pub entry: MidiEntryV1,
+}
+
+impl PendingImport {
+    pub(super) fn cancel(self) {
+        #[cfg(desktop)]
+        let _ = std::fs::remove_file(&self.stored_path);
+        #[cfg(target_arch = "wasm32")]
+        remove_web_midi(&self.entry.stored_name);
+    }
 }
 
 #[cfg(desktop)]
@@ -213,19 +222,7 @@ pub fn process_pending_android_result(data: &mut UiState) {
 pub fn open_midi_file_picker(data: &mut UiState) -> BoxFuture<MsgFn> {
     data.is_loading = true;
     crate::android_picker::launch();
-
-    Box::pin(std::future::poll_fn(|_cx| {
-        use crate::android_picker::poll;
-        let Some(result) = poll() else {
-            return std::task::Poll::Pending;
-        };
-        std::task::Poll::Ready(Box::new(
-            move |data: &mut UiState, _ctx: &mut crate::context::Context| {
-                data.is_loading = false;
-                apply_android_pick_result(result, data);
-            },
-        ) as MsgFn)
-    }))
+    Box::pin(std::future::pending())
 }
 
 #[cfg(target_arch = "wasm32")]
@@ -285,22 +282,26 @@ pub fn load_from_library(stored_name: String) -> BoxFuture<MsgFn> {
     )
 }
 
-#[cfg(desktop)]
+#[cfg(not(target_arch = "wasm32"))]
 async fn load_from_library_fut(stored_name: String) -> Option<(midi_file::MidiFile, PathBuf)> {
     let lib_dir = neothesia_core::utils::resources::midi_library_dir()?;
     let file_path = lib_dir.join(&stored_name);
-
-    let thread = crate::utils::task::thread::spawn("midi-loader".into(), move || {
-        let midi = midi_file::MidiFile::new(&file_path);
-
-        if let Err(e) = &midi {
-            log::error!("{e}");
-        }
-
-        midi.ok().map(|midi| (midi, file_path))
-    });
-
-    thread.join().await.ok().flatten()
+    #[cfg(desktop)]
+    {
+        let thread = crate::utils::task::thread::spawn("midi-loader".into(), move || {
+            let midi = midi_file::MidiFile::new(&file_path);
+            if let Err(e) = &midi {
+                log::error!("{e}");
+            }
+            midi.ok().map(|midi| (midi, file_path))
+        });
+        thread.join().await.ok().flatten()
+    }
+    #[cfg(not(desktop))]
+    {
+        let midi = midi_file::MidiFile::new(&file_path).ok()?;
+        Some((midi, file_path))
+    }
 }
 
 #[cfg(target_arch = "wasm32")]
@@ -308,14 +309,6 @@ async fn load_from_library_fut(stored_name: String) -> Option<(midi_file::MidiFi
     let bytes = load_midi(&stored_name)?;
     let midi = midi_file::MidiFile::from_bytes(&stored_name, &bytes).ok()?;
     Some((midi, PathBuf::from(&stored_name)))
-}
-
-#[cfg(target_os = "android")]
-async fn load_from_library_fut(stored_name: String) -> Option<(midi_file::MidiFile, PathBuf)> {
-    let lib_dir = neothesia_core::utils::resources::midi_library_dir()?;
-    let file_path = lib_dir.join(&stored_name);
-    let midi = midi_file::MidiFile::new(&file_path).ok()?;
-    Some((midi, file_path))
 }
 
 #[cfg(desktop)]
