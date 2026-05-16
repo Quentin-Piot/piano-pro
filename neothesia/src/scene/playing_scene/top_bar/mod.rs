@@ -650,6 +650,37 @@ impl TopBar {
         Self::proggress_bar_bg(this, ctx, ui, w, h);
 
         render_looper(ui);
+
+        if let super::GesturePhase::Seeking { current_pct, .. } = this.gesture {
+            let seek_x = current_pct * w;
+            let length_secs = this.player.length().as_secs_f32();
+            let secs_total = (current_pct * length_secs) as u32;
+            let label = format!("{}:{:02}", secs_total / 60, secs_total % 60);
+            let badge_w = 48.0;
+            let badge_x = (seek_x - badge_w / 2.0).clamp(0.0, w - badge_w);
+
+            nuon::quad()
+                .x(badge_x)
+                .y(-20.0)
+                .size(badge_w, 16.0)
+                .color(nuon::theme::PRIMARY)
+                .border_radius([4.0; 4])
+                .build(ui);
+            nuon::label()
+                .x(badge_x)
+                .y(-20.0)
+                .size(badge_w, 16.0)
+                .font_size(10.0)
+                .bold(true)
+                .color(nuon::Color::WHITE)
+                .text(label)
+                .build(ui);
+            nuon::quad()
+                .x(seek_x - 1.5)
+                .size(3.0, h)
+                .color(nuon::Color::WHITE)
+                .build(ui);
+        }
     }
 
     fn proggress_bar_bg(

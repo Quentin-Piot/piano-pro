@@ -135,6 +135,7 @@ mod android {
         proxy: EventLoopProxy<NeothesiaEvent>,
         live: Option<Live>,
         last_touch_y: Option<f64>,
+        touch_consumed: bool,
     }
 
     impl App {
@@ -143,6 +144,7 @@ mod android {
                 proxy,
                 live: None,
                 last_touch_y: None,
+                touch_consumed: false,
             }
         }
 
@@ -216,8 +218,15 @@ mod android {
 
             if let WindowEvent::Touch(touch) = &event {
                 let touch = *touch;
+                let scale = live.ctx.window_state.scale_factor;
+                let logical_pos = winit::dpi::LogicalPosition::new(
+                    (touch.location.x / scale) as f32,
+                    (touch.location.y / scale) as f32,
+                );
+
                 match touch.phase {
                     TouchPhase::Started => {
+                        self.touch_consumed = false;
                         self.last_touch_y = Some(touch.location.y);
                         live.on_window_event(&WindowEvent::CursorMoved {
                             device_id: touch.device_id,
@@ -228,14 +237,7 @@ mod android {
                             state: ElementState::Pressed,
                             button: MouseButton::Left,
                         });
-                    }
-                    TouchPhase::Ended | TouchPhase::Cancelled => {
-                        self.last_touch_y = None;
-                        live.on_window_event(&WindowEvent::MouseInput {
-                            device_id: touch.device_id,
-                            state: ElementState::Released,
-                            button: MouseButton::Left,
-                        });
+                        live.scene.touch_event(&mut live.ctx, TouchPhase::Started, logical_pos);
                     }
                     TouchPhase::Moved => {
                         let dy = self
@@ -243,17 +245,50 @@ mod android {
                             .replace(touch.location.y)
                             .map(|prev| touch.location.y - prev)
                             .unwrap_or(0.0);
-                        live.on_window_event(&WindowEvent::CursorMoved {
-                            device_id: touch.device_id,
-                            position: touch.location,
-                        });
-                        if dy.abs() > 0.5 {
-                            live.on_window_event(&WindowEvent::MouseWheel {
+
+                        let seeking = live
+                            .scene
+                            .touch_event(&mut live.ctx, TouchPhase::Moved, logical_pos);
+
+                        if seeking && !self.touch_consumed {
+                            live.on_window_event(&WindowEvent::CursorMoved {
                                 device_id: touch.device_id,
-                                delta: MouseScrollDelta::PixelDelta(PhysicalPosition::new(0.0, dy)),
-                                phase: TouchPhase::Moved,
+                                position: PhysicalPosition::new(-1.0_f64, -1.0_f64),
+                            });
+                            live.on_window_event(&WindowEvent::MouseInput {
+                                device_id: touch.device_id,
+                                state: ElementState::Released,
+                                button: MouseButton::Left,
+                            });
+                            self.touch_consumed = true;
+                        } else if !self.touch_consumed {
+                            live.on_window_event(&WindowEvent::CursorMoved {
+                                device_id: touch.device_id,
+                                position: touch.location,
+                            });
+                            if dy.abs() > 0.5 {
+                                live.on_window_event(&WindowEvent::MouseWheel {
+                                    device_id: touch.device_id,
+                                    delta: MouseScrollDelta::PixelDelta(PhysicalPosition::new(
+                                        0.0, dy,
+                                    )),
+                                    phase: TouchPhase::Moved,
+                                });
+                            }
+                        }
+                    }
+                    TouchPhase::Ended | TouchPhase::Cancelled => {
+                        self.last_touch_y = None;
+                        live.scene
+                            .touch_event(&mut live.ctx, touch.phase, logical_pos);
+                        if !self.touch_consumed {
+                            live.on_window_event(&WindowEvent::MouseInput {
+                                device_id: touch.device_id,
+                                state: ElementState::Released,
+                                button: MouseButton::Left,
                             });
                         }
+                        self.touch_consumed = false;
                     }
                 }
             } else {
@@ -274,10 +309,26 @@ mod android {
         };
         neothesia_core::utils::resources::set_android_data_path(data_dir.clone());
 
+        // Copy SF2 only if missing or corrupted (size mismatch)
         let sf2_path = data_dir.join("default.sf2");
+        let bundled_sf2 = include_bytes!("../../default.sf2");
+        
         if !sf2_path.exists() {
-            let bytes = include_bytes!("../../default.sf2");
-            if let Err(e) = std::fs::write(&sf2_path, bytes) {
+            // First time: copy the file
+            if let Err(e) = std::fs::write(&sf2_path, bundled_sf2) {
+                log::error!("Failed to write bundled SF2: {e}");
+            }
+        } else if let Ok(metadata) = std::fs::metadata(&sf2_path) {
+            // Check if file matches expected size
+            if metadata.len() != bundled_sf2.len() as u64 {
+                // File is corrupted or wrong version, overwrite
+                if let Err(e) = std::fs::write(&sf2_path, bundled_sf2) {
+                    log::error!("Failed to update bundled SF2: {e}");
+                }
+            }
+        } else {
+            // File exists but can't read metadata, try to overwrite
+            if let Err(e) = std::fs::write(&sf2_path, bundled_sf2) {
                 log::error!("Failed to write bundled SF2: {e}");
             }
         }
