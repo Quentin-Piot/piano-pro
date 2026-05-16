@@ -57,30 +57,23 @@ fn draw_card(
 }
 
 #[cfg(not(target_arch = "wasm32"))]
-fn on_async<T, Fut, FN>(future: Fut, f: FN) -> BoxFuture<MsgFn>
-where
-    T: 'static,
-    Fut: Future<Output = T> + Send + 'static,
-    FN: FnOnce(T, &mut UiState, &mut Context) + Send + 'static,
-{
-    Box::pin(async {
-        let res = future.await;
-        let f: MsgFn = Box::new(move |data, ctx| f(res, data, ctx));
-        f
-    })
-}
-
+trait MaybeSend: Send {}
+#[cfg(not(target_arch = "wasm32"))]
+impl<T: Send> MaybeSend for T {}
 #[cfg(target_arch = "wasm32")]
+trait MaybeSend {}
+#[cfg(target_arch = "wasm32")]
+impl<T> MaybeSend for T {}
+
 fn on_async<T, Fut, FN>(future: Fut, f: FN) -> BoxFuture<MsgFn>
 where
     T: 'static,
-    Fut: Future<Output = T> + 'static,
-    FN: FnOnce(T, &mut UiState, &mut Context) + 'static,
+    Fut: Future<Output = T> + MaybeSend + 'static,
+    FN: FnOnce(T, &mut UiState, &mut Context) + MaybeSend + 'static,
 {
     Box::pin(async {
         let res = future.await;
-        let f: MsgFn = Box::new(move |data, ctx| f(res, data, ctx));
-        f
+        Box::new(move |data: &mut UiState, ctx: &mut Context| f(res, data, ctx)) as MsgFn
     })
 }
 
@@ -128,23 +121,10 @@ pub struct MenuScene {
     last_page: Page,
 }
 
-#[cfg(desktop)]
 fn cancel_pending_import(state: &mut UiState) {
     if let Some(pending) = state.pending_import.take() {
-        let _ = std::fs::remove_file(&pending.stored_path);
+        pending.cancel();
     }
-}
-
-#[cfg(target_arch = "wasm32")]
-fn cancel_pending_import(state: &mut UiState) {
-    if let Some(pending) = state.pending_import.take() {
-        self::midi_picker::remove_web_midi(&pending.entry.stored_name);
-    }
-}
-
-#[cfg(target_os = "android")]
-fn cancel_pending_import(state: &mut UiState) {
-    state.pending_import.take();
 }
 
 impl MenuScene {

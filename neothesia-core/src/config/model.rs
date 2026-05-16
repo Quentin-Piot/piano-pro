@@ -240,7 +240,7 @@ fn default_note_labels() -> bool {
 }
 
 fn default_audio_gain() -> f32 {
-    0.2
+    1.0
 }
 
 fn default_vertical_guidelines() -> bool {

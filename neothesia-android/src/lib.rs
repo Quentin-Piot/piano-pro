@@ -297,7 +297,12 @@ mod android {
         }
 
         fn about_to_wait(&mut self, _: &ActiveEventLoop) {
-            if let Some(live) = &self.live {
+            if let Some(live) = &mut self.live {
+                if live.ctx.output_manager.needs_reconnect() {
+                    let sf2 = neothesia_core::utils::resources::default_sf2();
+                    let gain = live.ctx.config.audio_gain();
+                    live.ctx.output_manager.reconnect_synth(sf2, gain);
+                }
                 live.ctx.window.request_redraw();
             }
         }

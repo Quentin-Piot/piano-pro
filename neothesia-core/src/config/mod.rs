@@ -273,7 +273,16 @@ impl Config {
     }
 
     pub fn add_midi_to_library(&mut self, entry: MidiEntryV1) {
-        self.library.entries.push(entry);
+        if let Some(e) = self
+            .library
+            .entries
+            .iter_mut()
+            .find(|e| e.stored_name == entry.stored_name)
+        {
+            e.display_name = entry.display_name;
+        } else {
+            self.library.entries.push(entry);
+        }
     }
 
     pub fn remove_midi_from_library(&mut self, stored_name: &str) -> bool {

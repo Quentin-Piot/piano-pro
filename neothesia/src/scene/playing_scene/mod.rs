@@ -33,7 +33,7 @@ use toast_manager::ToastManager;
 mod animation;
 mod top_bar;
 
-pub enum GesturePhase {
+pub(super) enum GesturePhase {
     Idle,
     Tracking {
         start_x: f32,
@@ -68,7 +68,7 @@ pub struct PlayingScene {
     mouse_to_midi_state: MouseToMidiEventState,
 
     top_bar: TopBar,
-    pub gesture: GesturePhase,
+    pub(super) gesture: GesturePhase,
 }
 
 impl PlayingScene {
