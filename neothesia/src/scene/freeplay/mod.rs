@@ -115,7 +115,7 @@ impl FreeplayScene {
             .build(&mut self.nuon);
 
         if nuon::button()
-            .pos(12.0, 12.0)
+            .pos(12.0, 12.0 + ctx.window_state.safe_area_top)
             .size(44.0, 44.0)
             .border_radius([8.0; 4])
             .icon(icons::left_arrow_icon())
