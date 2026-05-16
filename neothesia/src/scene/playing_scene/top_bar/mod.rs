@@ -79,10 +79,11 @@ impl TopBar {
     pub fn ui(this: &mut PlayingScene, ctx: &mut Context) {
         let mut ui = std::mem::replace(&mut this.nuon, nuon::Ui::new());
 
+        let safe_top = ctx.window_state.safe_area_top;
         nuon::translate()
             .y(this.top_bar.topbar_expand_animation.animate_bool(
                 -75.0 + 5.0,
-                0.0,
+                safe_top,
                 ctx.frame_timestamp,
             ))
             .build(&mut ui, |ui| {

@@ -23,6 +23,8 @@ pub struct WindowState {
     pub modifiers_state: ModifiersState,
     pub left_mouse_btn: bool,
     pub right_mouse_btn: bool,
+
+    pub safe_area_top: f32,
 }
 
 impl WindowState {
@@ -52,6 +54,11 @@ impl WindowState {
             modifiers_state: ModifiersState::default(),
             left_mouse_btn: false,
             right_mouse_btn: false,
+
+            #[cfg(target_os = "android")]
+            safe_area_top: 28.0,
+            #[cfg(not(target_os = "android"))]
+            safe_area_top: 0.0,
         }
     }
 
