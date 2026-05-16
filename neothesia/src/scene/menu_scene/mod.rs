@@ -246,11 +246,12 @@ impl MenuScene {
         let win_w = ctx.window_state.logical_size.width;
         let win_h = ctx.window_state.logical_size.height;
 
+        let ff = nuon::theme::FormFactor::from_logical_size(win_w, win_h);
         let panel_w = (win_w - 40.0).min(760.0);
         let panel_h = 272.0;
         let button_gap = 12.0;
         let button_w = ((panel_w - 64.0 - button_gap) / 2.0).min(230.0);
-        let button_h = 68.0;
+        let button_h = if ff.is_phone() { 48.0 } else { 68.0 };
         let actions_w = button_w * 2.0 + button_gap;
 
         let song_name = self
@@ -696,9 +697,10 @@ impl MenuScene {
         let win_w = ctx.window_state.logical_size.width;
         let win_h = ctx.window_state.logical_size.height;
 
+        let ff = nuon::theme::FormFactor::from_logical_size(win_w, win_h);
         let panel_w = (win_w - 40.0).min(900.0);
         let panel_h = (win_h - 40.0).min(700.0);
-        let button_h = 66.0;
+        let button_h = if ff.is_phone() { 48.0 } else { 66.0 };
         let button_w = (panel_w - 64.0) / 2.0;
         let button_gap = 12.0;
         let header_h = 110.0;
@@ -858,9 +860,10 @@ impl MenuScene {
         let win_w = ctx.window_state.logical_size.width;
         let win_h = ctx.window_state.logical_size.height;
 
+        let ff = nuon::theme::FormFactor::from_logical_size(win_w, win_h);
         let panel_w = (win_w - 40.0).min(860.0);
         let panel_h = (win_h - 40.0).min(360.0);
-        let button_h = 66.0;
+        let button_h = if ff.is_phone() { 48.0 } else { 66.0 };
         let button_w = (panel_w - 64.0) / 2.0;
         let button_gap = 12.0;
 
@@ -1024,9 +1027,10 @@ impl MenuScene {
         let win_w = ctx.window_state.logical_size.width;
         let win_h = ctx.window_state.logical_size.height;
 
+        let ff = nuon::theme::FormFactor::from_logical_size(win_w, win_h);
         let panel_w = (win_w - 40.0).min(900.0);
         let panel_h = 300.0;
-        let button_h = 66.0;
+        let button_h = if ff.is_phone() { 48.0 } else { 66.0 };
         let button_w = (panel_w - 64.0) / 2.0;
         let button_gap = 12.0;
 

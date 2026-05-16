@@ -23,13 +23,13 @@ impl FormFactor {
     pub fn metrics(self) -> Metrics {
         match self {
             Self::Phone => Metrics {
-                btn_h: 56.0,
+                btn_h: 44.0,
                 btn_w: 120.0,
                 gutter: 12.0,
-                title: 22.0,
-                body: 15.0,
-                icon: 28.0,
-                touch: 48.0,
+                title: 20.0,
+                body: 14.0,
+                icon: 26.0,
+                touch: 44.0,
             },
             Self::Tablet => Metrics {
                 btn_h: 64.0,
