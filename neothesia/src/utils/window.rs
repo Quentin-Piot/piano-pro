@@ -64,8 +64,8 @@ impl WindowState {
                 self.logical_size = ps.to_logical(self.scale_factor);
             }
             WindowEvent::ScaleFactorChanged { scale_factor, .. } => {
-                self.logical_size = self.physical_size.to_logical(self.scale_factor);
                 self.scale_factor = *scale_factor;
+                self.logical_size = self.physical_size.to_logical(self.scale_factor);
             }
             WindowEvent::CursorMoved { position, .. } => {
                 self.cursor_physical_position = *position;
