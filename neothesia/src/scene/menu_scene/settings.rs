@@ -24,6 +24,18 @@ impl super::MenuScene {
 
         let bottom_bar_h = 60.0;
 
+        if self.popup != Popup::None {
+            nuon::layer().overlay(true).build(ui, |ui| {
+                if nuon::click_area("popup_backdrop")
+                    .size(win_w, win_h)
+                    .build(ui)
+                    .is_clicked()
+                {
+                    self.popup.close();
+                }
+            });
+        }
+
         nuon::translate().x(0.0).y(win_h).build(ui, |ui| {
             let padding = 10.0;
             let w = 80.0;
@@ -45,7 +57,7 @@ impl super::MenuScene {
         });
 
         let margin_top = 40.0;
-        let body_w = 650.0;
+        let body_w = (win_w - 32.0).min(650.0);
 
         self.settings_scroll = nuon::scroll()
             .scissor_size(win_w, (win_h - bottom_bar_h).max(0.0))
@@ -62,6 +74,7 @@ impl super::MenuScene {
                         self.settings_output_section(ctx, ui, rows, spacer);
                     });
 
+                #[cfg(desktop)]
                 nuon::settings_section("Input")
                     .width(body_w)
                     .build(ui, |ui, rows, spacer| {
@@ -157,7 +170,7 @@ impl super::MenuScene {
         row_w: f32,
         row_h: f32,
     ) {
-        let btn_w = 320.0;
+        let btn_w = (row_w * 0.6).min(320.0);
         let btn_h = 31.0;
 
         let btn_x = row_w - btn_w;
@@ -281,6 +294,7 @@ impl super::MenuScene {
     }
 }
 
+#[cfg(desktop)]
 impl super::MenuScene {
     fn settings_input_picker(
         &mut self,
@@ -289,7 +303,7 @@ impl super::MenuScene {
         row_w: f32,
         row_h: f32,
     ) {
-        let btn_w = 320.0;
+        let btn_w = (row_w * 0.6).min(320.0);
         let btn_h = 31.0;
 
         let btn_x = row_w - btn_w;
@@ -459,7 +473,7 @@ pub fn open_soundfont_picker(data: &mut UiState) -> BoxFuture<MsgFn> {
     })
 }
 
-#[cfg(not(target_arch = "wasm32"))]
+#[cfg(desktop)]
 async fn open_sondfont_picker_fut() -> Option<PathBuf> {
     let file = rfd::AsyncFileDialog::new()
         .add_filter("SoundFont2", &["sf2"])
@@ -475,7 +489,7 @@ async fn open_sondfont_picker_fut() -> Option<PathBuf> {
     file.map(|f| f.path().to_owned())
 }
 
-#[cfg(target_arch = "wasm32")]
+#[cfg(not(desktop))]
 async fn open_sondfont_picker_fut() -> Option<PathBuf> {
     None
 }
