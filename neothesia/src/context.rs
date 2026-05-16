@@ -1,8 +1,10 @@
 use std::sync::Arc;
 
+#[cfg(desktop)]
+use crate::input_manager::InputManager;
 use crate::{
-    NeothesiaEvent, TransformUniform, config::Config, input_manager::InputManager,
-    output_manager::OutputManager, utils::window::WindowState,
+    NeothesiaEvent, TransformUniform, config::Config, output_manager::OutputManager,
+    utils::window::WindowState,
 };
 use neothesia_core::render::{QuadRendererFactory, TextRendererFactory};
 use wgpu_jumpstart::{Gpu, Uniform};
@@ -21,6 +23,7 @@ pub struct Context {
     pub quad_renderer_facotry: QuadRendererFactory,
 
     pub output_manager: OutputManager,
+    #[cfg(desktop)]
     pub input_manager: InputManager,
     pub config: Config,
 
@@ -67,6 +70,7 @@ impl Context {
             quad_renderer_facotry,
 
             output_manager: Default::default(),
+            #[cfg(desktop)]
             input_manager: InputManager::new(proxy.clone()),
             config,
             proxy,

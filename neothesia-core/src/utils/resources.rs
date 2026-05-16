@@ -3,14 +3,38 @@ use std::path::PathBuf;
 #[cfg(not(target_arch = "wasm32"))]
 use std::{env, path::Path};
 
-#[cfg(all(target_family = "unix", not(target_os = "macos")))]
+#[cfg(target_os = "android")]
+static ANDROID_DATA_PATH: std::sync::OnceLock<PathBuf> = std::sync::OnceLock::new();
+
+#[cfg(target_os = "android")]
+static ANDROID_EXTERNAL_PATH: std::sync::OnceLock<PathBuf> = std::sync::OnceLock::new();
+
+#[cfg(target_os = "android")]
+pub fn set_android_data_path(path: PathBuf) {
+    let _ = ANDROID_DATA_PATH.set(path);
+}
+
+#[cfg(target_os = "android")]
+pub fn set_android_external_path(path: PathBuf) {
+    let _ = ANDROID_EXTERNAL_PATH.set(path);
+}
+
+#[cfg(all(
+    target_family = "unix",
+    not(target_os = "macos"),
+    not(target_os = "android")
+))]
 fn home() -> Option<PathBuf> {
     env::var_os("HOME")
         .and_then(|h| if h.is_empty() { None } else { Some(h) })
         .map(PathBuf::from)
 }
 
-#[cfg(all(target_family = "unix", not(target_os = "macos")))]
+#[cfg(all(
+    target_family = "unix",
+    not(target_os = "macos"),
+    not(target_os = "android")
+))]
 fn xdg_config() -> Option<PathBuf> {
     env::var_os("XDG_CONFIG_HOME")
         .and_then(|h| if h.is_empty() { None } else { Some(h) })
@@ -52,10 +76,17 @@ fn dev_resource_path(name: &str, extension: &str) -> Option<PathBuf> {
 }
 
 pub fn default_sf2() -> Option<PathBuf> {
+    #[cfg(target_os = "android")]
+    return ANDROID_DATA_PATH.get().map(|p| p.join("default.sf2"));
+
     #[cfg(target_arch = "wasm32")]
     return None;
 
-    #[cfg(all(target_family = "unix", not(target_os = "macos")))]
+    #[cfg(all(
+        target_family = "unix",
+        not(target_os = "macos"),
+        not(target_os = "android")
+    ))]
     {
         if let Some(path) = xdg_config().map(|p| p.join("default.sf2"))
             && path.exists()
@@ -98,10 +129,17 @@ pub fn default_sf2() -> Option<PathBuf> {
 }
 
 pub fn settings_ron() -> Option<PathBuf> {
+    #[cfg(target_os = "android")]
+    return ANDROID_DATA_PATH.get().map(|p| p.join("settings.ron"));
+
     #[cfg(target_arch = "wasm32")]
     return None;
 
-    #[cfg(all(target_family = "unix", not(target_os = "macos")))]
+    #[cfg(all(
+        target_family = "unix",
+        not(target_os = "macos"),
+        not(target_os = "android")
+    ))]
     return xdg_config().map(|p| p.join("settings.ron"));
 
     #[cfg(target_os = "windows")]
@@ -114,10 +152,20 @@ pub fn settings_ron() -> Option<PathBuf> {
 }
 
 pub fn midi_library_dir() -> Option<PathBuf> {
+    #[cfg(target_os = "android")]
+    return ANDROID_EXTERNAL_PATH
+        .get()
+        .map(|p| p.join("midi"))
+        .or_else(|| ANDROID_DATA_PATH.get().map(|p| p.join("midi")));
+
     #[cfg(target_arch = "wasm32")]
     return None;
 
-    #[cfg(all(target_family = "unix", not(target_os = "macos")))]
+    #[cfg(all(
+        target_family = "unix",
+        not(target_os = "macos"),
+        not(target_os = "android")
+    ))]
     return xdg_config().map(|p| p.join("midi"));
 
     #[cfg(target_os = "windows")]

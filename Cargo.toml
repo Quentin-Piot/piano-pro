@@ -5,6 +5,7 @@ members = [
   "ffmpeg-encoder",
   "neothesia",
   "neothesia-web",
+  "neothesia-android",
   "neothesia-ai",
   "neothesia-cli",
   "neothesia-core",
@@ -89,3 +90,9 @@ rten-tensor = "0.24"
 serde_json = "1"
 symphonia = { version = "0.5", features = ["mp3"] }
 symphonium = { version = "0.6", features = ["mp3"] }
+
+android-activity = { version = "0.6", features = ["native-activity"] }
+android_logger = "0.14"
+
+[workspace.lints.rust]
+unexpected_cfgs = { level = "warn", check-cfg = ['cfg(desktop)', 'cfg(feature, values("cargo-clippy"))'] }

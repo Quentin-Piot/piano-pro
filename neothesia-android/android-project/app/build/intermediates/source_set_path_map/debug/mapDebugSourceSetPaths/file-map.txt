@@ -1,0 +1,7 @@
+com.pianopro.app-pngs-0 /Users/quentinpiot/WebstormProjects/piano-pro/neothesia-android/android-project/app/build/generated/res/pngs/debug
+com.pianopro.app-resValues-1 /Users/quentinpiot/WebstormProjects/piano-pro/neothesia-android/android-project/app/build/generated/res/resValues/debug
+com.pianopro.app-packageDebugResources-2 /Users/quentinpiot/WebstormProjects/piano-pro/neothesia-android/android-project/app/build/intermediates/incremental/debug/packageDebugResources/merged.dir
+com.pianopro.app-packageDebugResources-3 /Users/quentinpiot/WebstormProjects/piano-pro/neothesia-android/android-project/app/build/intermediates/incremental/debug/packageDebugResources/stripped.dir
+com.pianopro.app-debug-4 /Users/quentinpiot/WebstormProjects/piano-pro/neothesia-android/android-project/app/build/intermediates/merged_res/debug/mergeDebugResources
+com.pianopro.app-debug-5 /Users/quentinpiot/WebstormProjects/piano-pro/neothesia-android/android-project/app/src/debug/res
+com.pianopro.app-main-6 /Users/quentinpiot/WebstormProjects/piano-pro/neothesia-android/android-project/app/src/main/res

@@ -32,10 +32,18 @@ fn get_layout(
 
 impl Keyboard {
     pub fn new(ctx: &Context, song_config: SongConfig) -> Self {
+        let ff = nuon::theme::FormFactor::from_logical_width(ctx.window_state.logical_size.width);
+        let range = match ff {
+            nuon::theme::FormFactor::Phone => piano_layout::KeyboardRange::new(48u8..=84),
+            nuon::theme::FormFactor::Tablet => piano_layout::KeyboardRange::new(36u8..=96),
+            nuon::theme::FormFactor::Desktop => {
+                piano_layout::KeyboardRange::new(ctx.config.piano_range())
+            }
+        };
         let layout = get_layout(
             ctx.window_state.logical_size.width,
             ctx.window_state.logical_size.height,
-            piano_layout::KeyboardRange::new(ctx.config.piano_range()),
+            range,
         );
 
         let mut renderer = KeyboardRenderer::new(layout);

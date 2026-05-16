@@ -1,0 +1,71 @@
+-- Merging decision tree log ---
+manifest
+ADDED from /Users/quentinpiot/WebstormProjects/piano-pro/neothesia-android/android-project/app/src/main/AndroidManifest.xml:2:1-29:12
+INJECTED from /Users/quentinpiot/WebstormProjects/piano-pro/neothesia-android/android-project/app/src/main/AndroidManifest.xml:2:1-29:12
+INJECTED from /Users/quentinpiot/WebstormProjects/piano-pro/neothesia-android/android-project/app/src/main/AndroidManifest.xml:2:1-29:12
+INJECTED from /Users/quentinpiot/WebstormProjects/piano-pro/neothesia-android/android-project/app/src/main/AndroidManifest.xml:2:1-29:12
+	package
+		INJECTED from /Users/quentinpiot/WebstormProjects/piano-pro/neothesia-android/android-project/app/src/main/AndroidManifest.xml
+	android:versionName
+		INJECTED from /Users/quentinpiot/WebstormProjects/piano-pro/neothesia-android/android-project/app/src/main/AndroidManifest.xml
+	android:versionCode
+		INJECTED from /Users/quentinpiot/WebstormProjects/piano-pro/neothesia-android/android-project/app/src/main/AndroidManifest.xml
+	xmlns:android
+		ADDED from /Users/quentinpiot/WebstormProjects/piano-pro/neothesia-android/android-project/app/src/main/AndroidManifest.xml:2:11-69
+uses-feature#0x00030000
+ADDED from /Users/quentinpiot/WebstormProjects/piano-pro/neothesia-android/android-project/app/src/main/AndroidManifest.xml:4:5-79
+	android:glEsVersion
+		ADDED from /Users/quentinpiot/WebstormProjects/piano-pro/neothesia-android/android-project/app/src/main/AndroidManifest.xml:4:19-51
+	android:required
+		ADDED from /Users/quentinpiot/WebstormProjects/piano-pro/neothesia-android/android-project/app/src/main/AndroidManifest.xml:4:52-76
+uses-feature#android.hardware.vulkan.level
+ADDED from /Users/quentinpiot/WebstormProjects/piano-pro/neothesia-android/android-project/app/src/main/AndroidManifest.xml:5:5-91
+	android:required
+		ADDED from /Users/quentinpiot/WebstormProjects/piano-pro/neothesia-android/android-project/app/src/main/AndroidManifest.xml:5:64-88
+	android:name
+		ADDED from /Users/quentinpiot/WebstormProjects/piano-pro/neothesia-android/android-project/app/src/main/AndroidManifest.xml:5:19-63
+application
+ADDED from /Users/quentinpiot/WebstormProjects/piano-pro/neothesia-android/android-project/app/src/main/AndroidManifest.xml:7:5-27:19
+INJECTED from /Users/quentinpiot/WebstormProjects/piano-pro/neothesia-android/android-project/app/src/main/AndroidManifest.xml:7:5-27:19
+	android:extractNativeLibs
+		INJECTED from /Users/quentinpiot/WebstormProjects/piano-pro/neothesia-android/android-project/app/src/main/AndroidManifest.xml
+	android:label
+		ADDED from /Users/quentinpiot/WebstormProjects/piano-pro/neothesia-android/android-project/app/src/main/AndroidManifest.xml:8:9-33
+activity#com.pianopro.app.MainActivity
+ADDED from /Users/quentinpiot/WebstormProjects/piano-pro/neothesia-android/android-project/app/src/main/AndroidManifest.xml:10:9-26:20
+	android:screenOrientation
+		ADDED from /Users/quentinpiot/WebstormProjects/piano-pro/neothesia-android/android-project/app/src/main/AndroidManifest.xml:14:13-50
+	android:label
+		ADDED from /Users/quentinpiot/WebstormProjects/piano-pro/neothesia-android/android-project/app/src/main/AndroidManifest.xml:12:13-37
+	android:windowSoftInputMode
+		ADDED from /Users/quentinpiot/WebstormProjects/piano-pro/neothesia-android/android-project/app/src/main/AndroidManifest.xml:16:13-55
+	android:exported
+		ADDED from /Users/quentinpiot/WebstormProjects/piano-pro/neothesia-android/android-project/app/src/main/AndroidManifest.xml:13:13-36
+	android:configChanges
+		ADDED from /Users/quentinpiot/WebstormProjects/piano-pro/neothesia-android/android-project/app/src/main/AndroidManifest.xml:15:13-137
+	android:name
+		ADDED from /Users/quentinpiot/WebstormProjects/piano-pro/neothesia-android/android-project/app/src/main/AndroidManifest.xml:11:13-57
+meta-data#android.app.lib_name
+ADDED from /Users/quentinpiot/WebstormProjects/piano-pro/neothesia-android/android-project/app/src/main/AndroidManifest.xml:18:13-20:53
+	android:value
+		ADDED from /Users/quentinpiot/WebstormProjects/piano-pro/neothesia-android/android-project/app/src/main/AndroidManifest.xml:20:17-50
+	android:name
+		ADDED from /Users/quentinpiot/WebstormProjects/piano-pro/neothesia-android/android-project/app/src/main/AndroidManifest.xml:19:17-52
+intent-filter#action:name:android.intent.action.MAIN+category:name:android.intent.category.LAUNCHER
+ADDED from /Users/quentinpiot/WebstormProjects/piano-pro/neothesia-android/android-project/app/src/main/AndroidManifest.xml:22:13-25:29
+action#android.intent.action.MAIN
+ADDED from /Users/quentinpiot/WebstormProjects/piano-pro/neothesia-android/android-project/app/src/main/AndroidManifest.xml:23:17-69
+	android:name
+		ADDED from /Users/quentinpiot/WebstormProjects/piano-pro/neothesia-android/android-project/app/src/main/AndroidManifest.xml:23:25-66
+category#android.intent.category.LAUNCHER
+ADDED from /Users/quentinpiot/WebstormProjects/piano-pro/neothesia-android/android-project/app/src/main/AndroidManifest.xml:24:17-77
+	android:name
+		ADDED from /Users/quentinpiot/WebstormProjects/piano-pro/neothesia-android/android-project/app/src/main/AndroidManifest.xml:24:27-74
+uses-sdk
+INJECTED from /Users/quentinpiot/WebstormProjects/piano-pro/neothesia-android/android-project/app/src/main/AndroidManifest.xml reason: use-sdk injection requested
+INJECTED from /Users/quentinpiot/WebstormProjects/piano-pro/neothesia-android/android-project/app/src/main/AndroidManifest.xml
+INJECTED from /Users/quentinpiot/WebstormProjects/piano-pro/neothesia-android/android-project/app/src/main/AndroidManifest.xml
+	android:targetSdkVersion
+		INJECTED from /Users/quentinpiot/WebstormProjects/piano-pro/neothesia-android/android-project/app/src/main/AndroidManifest.xml
+	android:minSdkVersion
+		INJECTED from /Users/quentinpiot/WebstormProjects/piano-pro/neothesia-android/android-project/app/src/main/AndroidManifest.xml

@@ -4,13 +4,16 @@ use super::audio_import::AudioImportState;
 use super::midi_picker::PendingImport;
 use crate::{NeothesiaEvent, context::Context, output_manager::OutputDescriptor, song::Song};
 
+#[cfg(desktop)]
 type InputDescriptor = midi_io::MidiInputPort;
 
 pub struct UiState {
     pub outputs: Vec<OutputDescriptor>,
     pub selected_output: Option<OutputDescriptor>,
 
+    #[cfg(desktop)]
     pub inputs: Vec<InputDescriptor>,
+    #[cfg(desktop)]
     pub selected_input: Option<InputDescriptor>,
 
     pub is_loading: bool,
@@ -31,7 +34,9 @@ impl UiState {
         Self {
             outputs: Vec::new(),
             selected_output: None,
+            #[cfg(desktop)]
             inputs: Vec::new(),
+            #[cfg(desktop)]
             selected_input: None,
             is_loading: false,
             song,
@@ -67,7 +72,11 @@ impl UiState {
 impl UiState {
     pub fn tick(&mut self, ctx: &mut Context) {
         self.outputs = ctx.output_manager.outputs();
-        self.inputs = ctx.input_manager.inputs();
+
+        #[cfg(desktop)]
+        {
+            self.inputs = ctx.input_manager.inputs();
+        }
 
         if self.selected_output.is_none() {
             if let Some(name) = ctx.config.output() {
@@ -81,10 +90,22 @@ impl UiState {
                     self.selected_output = self.outputs.first().cloned();
                 }
             } else {
-                self.selected_output = Some(OutputDescriptor::DummyOutput);
+                #[cfg(any(target_os = "android", target_arch = "wasm32"))]
+                {
+                    self.selected_output = self
+                        .outputs
+                        .first()
+                        .cloned()
+                        .or(Some(OutputDescriptor::DummyOutput));
+                }
+                #[cfg(not(any(target_os = "android", target_arch = "wasm32")))]
+                {
+                    self.selected_output = Some(OutputDescriptor::DummyOutput);
+                }
             }
         }
 
+        #[cfg(desktop)]
         if self.selected_input.is_none() {
             if let Some(input) = self
                 .inputs
@@ -126,6 +147,7 @@ fn connect_io(data: &UiState, ctx: &mut Context) {
             .set_gain(ctx.config.audio_gain());
     }
 
+    #[cfg(desktop)]
     if let Some(port) = data.selected_input.clone() {
         ctx.input_manager.connect_input(port);
     }
